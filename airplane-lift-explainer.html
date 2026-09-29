@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>איך מטוס נשאר באוויר?</title>
+<style>
+  :root {
+    --bg: #0a1230;
+    --panel: #111c44;
+    --ink: #eef2ff;
+    --muted: #9fb0e8;
+    --amber: #ffc44d;
+    --sky: #4dd2ff;
+    --red: #ff6b5a;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+  #top {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 18px 0;
+    pointer-events: none;
+  }
+  #top h1 { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.01em; }
+  #top p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+
+  .lbl {
+    position: fixed; left: 0; top: 0; padding: 3px 10px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; background: rgba(10, 18, 48, .84);
+    pointer-events: none; white-space: nowrap; will-change: transform;
+  }
+  .lbl[hidden] { display: none; }
+
+  #sheet {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: var(--panel);
+    border-radius: 22px 22px 0 0;
+    padding: 14px 18px calc(env(safe-area-inset-bottom, 0px) + 14px);
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, .4);
+  }
+  #dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 10px; }
+  #dots i { width: 22px; height: 6px; border-radius: 3px; background: #2b3a78; display: block; transition: background .2s, width .2s; }
+  #dots i.done { background: #4a5db0; }
+  #dots i.on { background: var(--amber); width: 34px; }
+
+  #mid { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+  #diagram { flex: none; width: 132px; }
+  #diagram svg { width: 100%; height: auto; display: block; background: rgba(255,255,255,.04); border-radius: 12px; }
+  #diagram text { font-family: inherit; }
+  #info { flex: 1; min-width: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+  #info .big { font-size: 24px; font-weight: 800; color: var(--ink); line-height: 1.15; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+  #info .row { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
+  #info .chip { width: 12px; height: 12px; border-radius: 50%; flex: none; display: block; }
+  #info .bar { width: 100%; height: 10px; border-radius: 5px; background: linear-gradient(90deg, #ff6b5a, #ffffff, #4dd2ff); margin: 4px 0; }
+
+  #cap { margin: 0 0 10px; font-size: 16px; line-height: 1.55; min-height: 7.8em; }
+  #slidelabel { font-size: 14px; color: var(--muted); margin: 0 0 2px; }
+  #slidewrap { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; direction: ltr; font-size: 13px; color: var(--muted); }
+  #slidewrap[hidden], #slidelabel[hidden] { display: none; }
+  #slider { flex: 1; accent-color: var(--amber); height: 32px; }
+
+  #btns { display: flex; gap: 10px; }
+  #btns button {
+    flex: 1; min-height: 54px; border: 0; border-radius: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #prev { background: #22307a; }
+  #next { background: var(--sky); }
+  #btns button:disabled { opacity: .3; cursor: default; }
+  #btns button:focus-visible, #slider:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
+  #btns button:active:not(:disabled) { transform: scale(.97); }
+
+  @media (prefers-reduced-motion: reduce) { #dots i { transition: none; } }
+  @media (min-width: 700px) {
+    #sheet { left: 50%; right: auto; width: 520px; transform: translateX(-50%); }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="top">
+  <h1>איך מטוס נשאר באוויר?</h1>
+  <p>גררו כדי לסובב את התצוגה, צבטו כדי לעשות זום.</p>
+</div>
+
+<div class="lbl" id="l0">כיוון הרוח</div>
+<div class="lbl" id="l1" hidden>לחץ נמוך</div>
+<div class="lbl" id="l2" hidden>לחץ גבוה</div>
+<div class="lbl" id="l3" hidden>עילוי</div>
+<div class="lbl" id="l4" hidden>האוויר מוטה כלפי מטה</div>
+<div class="lbl" id="l5" hidden>מערבולות</div>
+
+<div id="sheet">
+  <div id="dots"></div>
+  <div id="mid">
+    <div id="diagram"></div>
+    <div id="info"></div>
+  </div>
+  <p id="cap"></p>
+  <div id="slidelabel" hidden>זווית ההתקפה: גררו כדי לשנות</div>
+  <div id="slidewrap" hidden>
+    <span id="sl0">0°</span>
+    <input id="slider" type="range" min="0" max="14" step="0.1" value="6" aria-label="זווית ההתקפה">
+    <span id="sl1">14°</span>
+  </div>
+  <div id="btns">
+    <button id="prev" type="button" aria-label="הקודם">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#eef2ff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+    <button id="next" type="button" aria-label="הבא">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#06153a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  var canvas = document.getElementById('c');
+  var sheet = document.getElementById('sheet');
+  var dotsEl = document.getElementById('dots');
+  var diagramEl = document.getElementById('diagram');
+  var infoEl = document.getElementById('info');
+  var capEl = document.getElementById('cap');
+  var prevBtn = document.getElementById('prev');
+  var nextBtn = document.getElementById('next');
+  var slideWrap = document.getElementById('slidewrap');
+  var slideLabel = document.getElementById('slidelabel');
+  var slider = document.getElementById('slider');
+  var sl0 = document.getElementById('sl0');
+  var sl1 = document.getElementById('sl1');
+  var labelEls = [0, 1, 2, 3, 4, 5].map(function (i) { return document.getElementById('l' + i); });
+
+  if (!window.THREE) { capEl.textContent = 'לא ניתן לטעון את מנוע התלת־ממד. בדקו את החיבור ורעננו את הדף.'; return; }
+  var renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true }); }
+  catch (e) { capEl.textContent = 'הדפדפן הזה לא תומך ב־WebGL.'; return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+  var V = THREE.Vector3, TAU = Math.PI * 2, DEG = 180 / Math.PI;
+  var scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a1230);
+  var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 300);
+  var root = new THREE.Group();
+  scene.add(root);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+  var dl = new THREE.DirectionalLight(0xffffff, 0.8);
+  dl.position.set(3, 8, 10);
+  scene.add(dl);
+
+  /* ---------- Joukowski airfoil (potential flow + Kutta condition) ---------- */
+  var MX = -0.08, MY = 0.06;
+  var AR = Math.hypot(1 - MX, MY);
+  var BETA = Math.asin(MY / AR);
+  var SC = 1.5;          // display scale
+  var HALFSPAN = 3;
+  var TH0 = Math.atan2(-MY, 1 - MX);   // circle angle that maps to the trailing edge
+
+  function airfoilPoints(n) {
+    var pts = [];
+    for (var k = 0; k < n; k++) {
+      var th = k / n * TAU;
+      var zr = MX + AR * Math.cos(th), zi = MY + AR * Math.sin(th);
+      var m = zr * zr + zi * zi;
+      pts.push({ x: zr + zr / m, y: zi - zi / m, th: th });
+    }
+    return pts;
+  }
+  var AF = airfoilPoints(160);
+  var minX = 1e9, maxX = -1e9;
+  AF.forEach(function (p) { if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x; });
+  var CHORD = maxX - minX;
+
+  /* velocity from a point ζ on/outside the circle (airfoil frame, U = 1) */
+  var vu = 0, vv = 0;
+  function velZeta(zr, zi, ca, sa, G) {
+    var wr = zr - MX, wi = zi - MY;
+    var w2r = wr * wr - wi * wi, w2i = 2 * wr * wi, w2m = w2r * w2r + w2i * w2i;
+    var iw2r = w2r / w2m, iw2i = -w2i / w2m;
+    var t2r = AR * AR * (ca * iw2r - sa * iw2i), t2i = AR * AR * (ca * iw2i + sa * iw2r);
+    var wm = wr * wr + wi * wi, iwr = wr / wm, iwi = -wi / wm;
+    var g = G / TAU;
+    var t3r = -iwi * g, t3i = iwr * g;
+    var dWr = ca - t2r + t3r, dWi = -sa - t2i + t3i;
+    var zzr = zr * zr - zi * zi, zzi = 2 * zr * zi, zzm = zzr * zzr + zzi * zzi;
+    var izr = zzr / zzm, izi = -zzi / zzm;
+    var dzr = 1 - izr, dzi = -izi, dm = dzr * dzr + dzi * dzi;
+    var qr = (dWr * dzr + dWi * dzi) / dm, qi = (dWi * dzr - dWr * dzi) / dm;
+    vu = qr; vv = -qi;
+  }
+  /* velocity at airfoil-frame point z; returns false when inside the wing */
+  function velZ(x, y, ca, sa, G) {
+    var zr = x * x - y * y - 4, zi = 2 * x * y;
+    var m = Math.hypot(zr, zi);
+    var sr = Math.sqrt(Math.max(0, (m + zr) / 2)), si = Math.sqrt(Math.max(0, (m - zr) / 2));
+    if (zi < 0) si = -si;
+    var ar = (x + sr) / 2, ai = (y + si) / 2, br = (x - sr) / 2, bi = (y - si) / 2;
+    var da = Math.hypot(ar - MX, ai - MY), db = Math.hypot(br - MX, bi - MY);
+    var qr, qi, d;
+    if (da >= db) { qr = ar; qi = ai; d = da; } else { qr = br; qi = bi; d = db; }
+    if (d < AR * 1.002) return false;
+    velZeta(qr, qi, ca, sa, G);
+    return true;
+  }
+
+  function smooth(a, b, x) { var t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+  function stallOf(deg) { return smooth(14, 17.5, deg); }
+  function gammaOf(alphaRad, s) { return 4 * Math.PI * AR * Math.sin(alphaRad + BETA) * (1 - 0.75 * s); }
+  function clOf(deg) { return 2 * gammaOf(deg / DEG, stallOf(deg)) / CHORD; }
+
+  /* ---------- wing mesh ---------- */
+  var wingShape = new THREE.Shape();
+  AF.forEach(function (p, i) { if (i === 0) wingShape.moveTo(p.x * SC, p.y * SC); else wingShape.lineTo(p.x * SC, p.y * SC); });
+  wingShape.closePath();
+  var wingGeo = new THREE.ExtrudeGeometry(wingShape, { depth: HALFSPAN * 2, bevelEnabled: false });
+  wingGeo.translate(0, 0, -HALFSPAN);
+  var wing = new THREE.Mesh(wingGeo, new THREE.MeshLambertMaterial({ color: 0xb9c4ff }));
+  var wingEdges = new THREE.LineSegments(new THREE.EdgesGeometry(wingGeo, 30), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 }));
+  var wingGroup = new THREE.Group();
+  wingGroup.add(wing, wingEdges);
+  root.add(wingGroup);
+
+  /* ---------- particles ---------- */
+  var PN = 700, X0 = -6.5, X1 = 9, SPEED = 4.5;
+  var pPos = new Float32Array(PN * 3), pCol = new Float32Array(PN * 3), pZv = new Float32Array(PN);
+  var pGeo = new THREE.BufferGeometry();
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+  pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
+  function circleTex() {
+    var cv = document.createElement('canvas');
+    cv.width = cv.height = 64;
+    var g = cv.getContext('2d');
+    var gr = g.createRadialGradient(32, 32, 0, 32, 32, 30);
+    gr.addColorStop(0, 'rgba(255,255,255,1)');
+    gr.addColorStop(0.6, 'rgba(255,255,255,.85)');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    return new THREE.CanvasTexture(cv);
+  }
+  var tex = circleTex();
+  var points = new THREE.Points(pGeo, new THREE.PointsMaterial({
+    size: 0.3, vertexColors: true, map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+  }));
+  points.frustumCulled = false;
+  root.add(points);
+  function respawn(i, anywhere) {
+    pPos[i * 3] = anywhere ? X0 + Math.random() * (X1 - X0) : X0 + Math.random() * 0.4;
+    pPos[i * 3 + 1] = (Math.random() - 0.5) * 6.6;
+    pPos[i * 3 + 2] = (Math.random() - 0.5) * 7.0;
+    pZv[i] = 0;
+  }
+  for (var pi = 0; pi < PN; pi++) respawn(pi, true);
+
+  /* ---------- pressure arrows ---------- */
+  var NA = 28, ZS = [-2.2, 0, 2.2];
+  var arrGeo = new THREE.BufferGeometry();
+  arrGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NA * ZS.length * 2 * 3), 3));
+  arrGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(NA * ZS.length * 2 * 3), 3));
+  var arrLines = new THREE.LineSegments(arrGeo, new THREE.LineBasicMaterial({ vertexColors: true }));
+  arrLines.frustumCulled = false;
+  var tipGeo = new THREE.BufferGeometry();
+  tipGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NA * ZS.length * 3), 3));
+  tipGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(NA * ZS.length * 3), 3));
+  var arrTips = new THREE.Points(tipGeo, new THREE.PointsMaterial({
+    size: 0.32, vertexColors: true, map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+  }));
+  arrTips.frustumCulled = false;
+  root.add(arrLines, arrTips);
+
+  var liftArrow = new THREE.ArrowHelper(new V(0, 1, 0), new V(0, 0, 0), 2, 0xffd36b, 0.6, 0.4);
+  var downArrow = new THREE.ArrowHelper(new V(1, -0.2, 0), new V(4, 0, 0), 2, 0x6ef3c5, 0.5, 0.35);
+  root.add(liftArrow, downArrow);
+
+  /* ---------- state ---------- */
+  var TEXTS = [
+    'מטוס נשאר באוויר בזכות הכנפיים. כשהכנף חותכת את האוויר, האוויר מתפצל סביבה. הצבע מראה מהירות: כחול הוא אוויר מהיר, אדום הוא איטי. שימו לב שמעל הכנף האוויר מהיר יותר.',
+    'איפה שהאוויר מהיר, הלחץ נמוך. מעל הכנף הלחץ נמוך ומתחתיה גבוה, וההפרש דוחף את הכנף כלפי מעלה. החיצים הכחולים מושכים למעלה, והאדומים דוחפים מלמטה. הסכום שלהם הוא העילוי.',
+    'זווית ההתקפה היא הזווית שבה הכנף נוטה מול הרוח. כשמגדילים אותה, הכנף מסיטה יותר אוויר כלפי מטה והעילוי גדל, בהתאם לחוק השלישי של ניוטון. גררו את המחוון והסתכלו על החץ הירוק.',
+    'יותר מדי זווית זה לא טוב. מעל כ־15° הזרימה מתנתקת ממשטח הכנף, נוצרות מערבולות והעילוי קורס. זה נקרא סטול. גררו את המחוון וחצו את הגבול.'
+  ];
+  var step = 0, time = 0, alphaDeg = 5, alphaTarget = 5, lastInteract = 0, zoom = 1;
+  var userY = -0.55, userX = 0.16;
+  var downAngle = 0;
+
+  for (var di = 0; di < TEXTS.length; di++) dotsEl.appendChild(document.createElement('i'));
+
+  function ax(a) { return 6 + a / 24 * 116; }
+  function ay(c) { return 68 - (c + 0.2) / 2.5 * 50; }
+  function diagram() {
+    var s = '';
+    if (step === 0) {
+      s += '<defs><linearGradient id="gr" x1="0" x2="1"><stop offset="0" stop-color="#ff6b5a"/><stop offset=".5" stop-color="#fff"/><stop offset="1" stop-color="#4dd2ff"/></linearGradient></defs>';
+      s += '<rect x="10" y="10" width="108" height="10" rx="5" fill="url(#gr)"/>';
+      s += '<text x="10" y="32" font-size="9" fill="#eef2ff">איטי</text><text x="118" y="32" text-anchor="end" font-size="9" fill="#eef2ff">מהיר</text>';
+      s += afIcon(64, 58, 20, false);
+    } else if (step === 1) {
+      s += afIcon(64, 46, 22, true);
+      s += '<text x="64" y="12" text-anchor="middle" font-size="9" fill="#7de8ff">לחץ נמוך</text>';
+      s += '<text x="64" y="80" text-anchor="middle" font-size="9" fill="#ff8a7a">לחץ גבוה</text>';
+    } else {
+      var pts = '', a;
+      for (a = 0; a <= 24; a += 0.5) pts += ax(a).toFixed(1) + ',' + ay(clOf(a)).toFixed(1) + ' ';
+      s += '<line x1="6" y1="' + ay(0).toFixed(1) + '" x2="122" y2="' + ay(0).toFixed(1) + '" stroke="#9fb0e8" stroke-width="1"/>';
+      s += '<rect x="' + ax(15) + '" y="12" width="' + (ax(24) - ax(15)).toFixed(1) + '" height="56" fill="#ff5a5a" opacity=".12"/>';
+      s += '<polyline points="' + pts + '" fill="none" stroke="#ffd36b" stroke-width="2.4" stroke-linejoin="round"/>';
+      s += '<circle id="dot" cx="0" cy="0" r="4.5" fill="#fff"/>';
+      s += '<text x="8" y="12" font-size="9" fill="#eef2ff">עילוי לפי זווית</text>';
+      s += '<text x="120" y="78" text-anchor="end" font-size="8" fill="#9fb0e8">זווית ההתקפה</text>';
+    }
+    diagramEl.innerHTML = '<svg viewBox="0 0 128 84" role="img" aria-label="שרטוט לשלב ' + (step + 1) + '">' + s + '</svg>';
+  }
+  function afIcon(cx, cy, sc, arrows) {
+    var p = '';
+    for (var i = 0; i < AF.length; i += 4) p += (i === 0 ? 'M' : 'L') + (cx + AF[i].x * sc / 2).toFixed(1) + ' ' + (cy - AF[i].y * sc / 2).toFixed(1) + ' ';
+    var s = '<path d="' + p + 'Z" fill="#b9c4ff" stroke="#fff" stroke-width="1"/>';
+    if (arrows) {
+      for (var k = -1; k <= 1; k++) {
+        var x = cx + k * 16;
+        s += '<path d="M' + x + ' ' + (cy - 10) + 'V' + (cy - 24) + 'm-3 4l3-5 3 5" fill="none" stroke="#7de8ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+        s += '<path d="M' + x + ' ' + (cy + 24) + 'V' + (cy + 12) + 'm-3 -4l3 5 3-5" fill="none" stroke="#ff8a7a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+      }
+    }
+    return s;
+  }
+  function info() {
+    var h = '';
+    if (step === 0) h = '<div class="bar"></div><div class="row"><span class="chip" style="background:#4dd2ff"></span><span>מהיר: לחץ נמוך</span></div><div class="row"><span class="chip" style="background:#ff6b5a"></span><span>איטי: לחץ גבוה</span></div>';
+    else if (step === 1) h = '<div class="big" id="v"></div><div>הפרש הלחצים גורם לעילוי</div>';
+    else h = '<div class="big" id="v"></div><div id="sub"></div><div id="sub2"></div>';
+    infoEl.innerHTML = h;
+  }
+  function setText(id, t) { var el = document.getElementById(id); if (el && el.textContent !== t) el.textContent = t; }
+
+  function setStep(n) {
+    step = Math.max(0, Math.min(TEXTS.length - 1, n));
+    capEl.textContent = TEXTS[step];
+    Array.prototype.forEach.call(dotsEl.children, function (d, i) { d.className = i === step ? 'on' : (i < step ? 'done' : ''); });
+    prevBtn.disabled = step === 0;
+    nextBtn.disabled = step === TEXTS.length - 1;
+    var hasSlider = step >= 2;
+    slideWrap.hidden = !hasSlider;
+    slideLabel.hidden = !hasSlider;
+    if (step === 2) {
+      slider.min = '0'; slider.max = '14'; slider.step = '0.1';
+      sl0.textContent = '0°'; sl1.textContent = '14°';
+      alphaTarget = Math.min(14, alphaTarget <= 14 ? alphaTarget : 6);
+      if (alphaTarget < 1) alphaTarget = 6;
+      slider.value = String(alphaTarget);
+    } else if (step === 3) {
+      slider.min = '8'; slider.max = '24'; slider.step = '0.1';
+      sl0.textContent = '8°'; sl1.textContent = '24°';
+      alphaTarget = 18; slider.value = '18';
+    } else {
+      alphaTarget = step === 0 ? 5 : 7;
+    }
+    arrLines.visible = arrTips.visible = step >= 1;
+    liftArrow.visible = step >= 1;
+    downArrow.visible = step === 2;
+    diagram();
+    info();
+    layout();
+  }
+  prevBtn.addEventListener('click', function () { setStep(step - 1); });
+  nextBtn.addEventListener('click', function () { setStep(step + 1); });
+  slider.addEventListener('input', function () { alphaTarget = parseFloat(slider.value) || 0; });
+
+  function layout() {
+    var w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', layout);
+
+  /* input */
+  var pointers = {}, pinchStart = 0, zoomStart = 1;
+  function pDist() {
+    var ks = Object.keys(pointers);
+    var p1 = pointers[ks[0]], p2 = pointers[ks[1]];
+    return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+  }
+  canvas.addEventListener('pointerdown', function (e) {
+    pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+    if (Object.keys(pointers).length === 2) { pinchStart = pDist(); zoomStart = zoom; }
+    lastInteract = performance.now();
+  });
+  canvas.addEventListener('pointermove', function (e) {
+    var p = pointers[e.pointerId];
+    if (!p) return;
+    var dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    lastInteract = performance.now();
+    var n = Object.keys(pointers).length;
+    if (n === 1) {
+      userY = Math.max(-1.3, Math.min(1.3, userY + dx * 0.008));
+      userX = Math.max(-0.5, Math.min(0.9, userX + dy * 0.006));
+    } else if (n >= 2 && pinchStart > 0) {
+      zoom = Math.max(0.6, Math.min(2.4, zoomStart * pDist() / pinchStart));
+    }
+  });
+  function up(e) {
+    delete pointers[e.pointerId];
+    if (Object.keys(pointers).length < 2) pinchStart = 0;
+    lastInteract = performance.now();
+  }
+  canvas.addEventListener('pointerup', up);
+  canvas.addEventListener('pointercancel', up);
+  canvas.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    zoom = Math.max(0.6, Math.min(2.4, zoom * (e.deltaY < 0 ? 1.08 : 0.92)));
+  }, { passive: false });
+
+  /* labels */
+  var v3 = new V();
+  function place(lbl, x, y, z) {
+    if (lbl.hidden) return;
+    v3.set(x, y, z);
+    root.localToWorld(v3);
+    v3.project(camera);
+    var pxx = (v3.x * 0.5 + 0.5) * window.innerWidth;
+    var pyy = (-v3.y * 0.5 + 0.5) * window.innerHeight;
+    var w = lbl.offsetWidth;
+    pxx = Math.max(6, Math.min(window.innerWidth - w - 6, pxx - w / 2));
+    lbl.style.transform = 'translate(' + pxx + 'px,' + pyy + 'px) translateY(-100%)';
+  }
+
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var last = performance.now() / 1000;
+  var dirTmp = new V();
+
+  function frame(t) {
+    requestAnimationFrame(frame);
+    var now = t / 1000;
+    var dt = Math.min(0.05, Math.max(0.001, now - last));
+    last = now; time += dt;
+
+    alphaDeg += (alphaTarget - alphaDeg) * (1 - Math.exp(-8 * dt));
+    var al = alphaDeg / DEG, ca = Math.cos(al), sa = Math.sin(al);
+    var s = stallOf(alphaDeg);
+    var G = gammaOf(al, s);
+    var CL = 2 * G / CHORD;
+    wingGroup.rotation.z = -al;
+
+    /* camera */
+    var w = window.innerWidth, h = window.innerHeight, aspect = w / h;
+    var half = Math.tan(22.5 * Math.PI / 180);
+    var dist = (aspect < 1.05 ? 44 : Math.max(20, 17 / (2 * half * Math.min(aspect, 1.8)))) / zoom;
+    camera.position.set(0, 0, dist);
+    camera.lookAt(0, 0, 0);
+    var sheetH = sheet.getBoundingClientRect().height;
+    root.position.y = (sheetH / h) * (2 * half * dist) * 0.5 - 0.02 * (2 * half * dist);
+    var idle = performance.now() - lastInteract > 2500 && Object.keys(pointers).length === 0;
+    root.rotation.y = userY + (idle && !reduce ? Math.sin(time * 0.3) * 0.1 : 0);
+    root.rotation.x = userX;
+
+    /* advect particles */
+    var ca2 = ca, sa2 = sa;
+    var dts = dt * SPEED;
+    for (var i = 0; i < PN; i++) {
+      var i3 = i * 3, x = pPos[i3], y = pPos[i3 + 1], z = pPos[i3 + 2];
+      var xa = (x * ca2 - y * sa2) / SC, ya = (x * sa2 + y * ca2) / SC;
+      if (!velZ(xa, ya, ca, sa, G)) { respawn(i, false); continue; }
+      var ux = vu * ca + vv * sa, uy = -vu * sa + vv * ca;
+      var speedAF = Math.hypot(vu, vv);
+      var turb = s > 0 && xa > -1.4 && xa < 5 && ya > -0.15 && ya < 2.6;
+      if (turb) {
+        ux = ux * (1 - 0.55 * s) + (Math.random() - 0.5) * 1.5 * s;
+        uy = uy * (1 - 0.55 * s) + (Math.random() - 0.5) * 2.0 * s;
+        pZv[i] = (Math.random() - 0.5) * 1.6 * s;
+        speedAF *= (1 - 0.55 * s);
+      }
+      var mx = x + ux * dts * 0.5, my = y + uy * dts * 0.5;
+      var xb = (mx * ca2 - my * sa2) / SC, yb = (mx * sa2 + my * ca2) / SC;
+      if (velZ(xb, yb, ca, sa, G)) {
+        ux = vu * ca + vv * sa; uy = -vu * sa + vv * ca;
+        if (turb) { ux = ux * (1 - 0.55 * s) + (Math.random() - 0.5) * 1.5 * s; uy = uy * (1 - 0.55 * s) + (Math.random() - 0.5) * 2.0 * s; }
+      }
+      x += ux * dts; y += uy * dts; z += pZv[i] * dts;
+      pPos[i3] = x; pPos[i3 + 1] = y; pPos[i3 + 2] = z;
+      if (x > X1 || y > 5.2 || y < -5.2 || z > 3.8 || z < -3.8) { respawn(i, false); continue; }
+      var tq = Math.max(-1, Math.min(1, (speedAF - 1) / 0.6));
+      var at = Math.abs(tq), cr, cg, cb;
+      if (tq >= 0) { cr = 0.95 * (1 - at) + 0.3 * at; cg = 0.95 * (1 - at) + 0.85 * at; cb = 0.95 * (1 - at) + 1.0 * at; }
+      else { cr = 0.95 * (1 - at) + 1.0 * at; cg = 0.95 * (1 - at) + 0.36 * at; cb = 0.95 * (1 - at) + 0.3 * at; }
+      pCol[i3] = cr * 0.9; pCol[i3 + 1] = cg * 0.9; pCol[i3 + 2] = cb * 0.9;
+    }
+    pGeo.attributes.position.needsUpdate = true;
+    pGeo.attributes.color.needsUpdate = true;
+
+    /* pressure arrows on the surface */
+    if (step >= 1) {
+      var ap = arrGeo.attributes.position.array, ac = arrGeo.attributes.color.array;
+      var tp = tipGeo.attributes.position.array, tc = tipGeo.attributes.color.array;
+      var idx = 0, tdx = 0;
+      var cR = Math.cos(-al), sR = Math.sin(-al);
+      for (var k = 0; k < NA; k++) {
+        var th = TH0 + 0.14 + (TAU - 0.28) * k / (NA - 1);
+        var zr = MX + AR * Math.cos(th), zi = MY + AR * Math.sin(th);
+        var m = zr * zr + zi * zi;
+        var px = zr + zr / m, py = zi - zi / m;
+        // tangent = i * a e^{iθ} * (1 - 1/ζ²)
+        var zzr = zr * zr - zi * zi, zzi = 2 * zr * zi, zzm = zzr * zzr + zzi * zzi;
+        var dzr = 1 - zzr / zzm, dzi = zzi / zzm;
+        var er = -Math.sin(th), ei = Math.cos(th);
+        var tr = er * dzr - ei * dzi, ti = er * dzi + ei * dzr;
+        var tm = Math.hypot(tr, ti) || 1;
+        var nx = ti / tm, ny = -tr / tm;
+        velZeta(zr, zi, ca, sa, G);
+        var cp = 1 - (vu * vu + vv * vv);
+        var len = Math.min(1.5, Math.abs(cp) * 0.5 + 0.05);
+        // display frame
+        var bx = (px * cR - py * sR) * SC, by = (px * sR + py * cR) * SC;
+        var dnx = nx * cR - ny * sR, dny = nx * sR + ny * cR;
+        var sx0, sy0, sx1, sy1, cr2, cg2, cb2;
+        if (cp < 0) { sx0 = bx; sy0 = by; sx1 = bx + dnx * len; sy1 = by + dny * len; cr2 = 0.3; cg2 = 0.85; cb2 = 1; }
+        else { sx0 = bx + dnx * len; sy0 = by + dny * len; sx1 = bx; sy1 = by; cr2 = 1; cg2 = 0.42; cb2 = 0.35; }
+        for (var zk = 0; zk < ZS.length; zk++) {
+          ap[idx] = sx0; ap[idx + 1] = sy0; ap[idx + 2] = ZS[zk];
+          ap[idx + 3] = sx1; ap[idx + 4] = sy1; ap[idx + 5] = ZS[zk];
+          for (var c = 0; c < 2; c++) { ac[idx + c * 3] = cr2; ac[idx + c * 3 + 1] = cg2; ac[idx + c * 3 + 2] = cb2; }
+          idx += 6;
+          tp[tdx] = sx1; tp[tdx + 1] = sy1; tp[tdx + 2] = ZS[zk];
+          tc[tdx] = cr2; tc[tdx + 1] = cg2; tc[tdx + 2] = cb2;
+          tdx += 3;
+        }
+      }
+      arrGeo.attributes.position.needsUpdate = true; arrGeo.attributes.color.needsUpdate = true;
+      tipGeo.attributes.position.needsUpdate = true; tipGeo.attributes.color.needsUpdate = true;
+
+      var ll = Math.max(0.05, CL * 1.6);
+      liftArrow.setLength(ll, 0.55, 0.35);
+      liftArrow.visible = CL > 0.12;
+    }
+
+    /* downwash arrow */
+    if (step === 2) {
+      var teX = (maxX * ca2 + 0) * 0, ex = 3.7 + 1.9, ey = -maxX * SC * sa * 0.55 - 0.2;
+      var xd = (ex * ca2 - ey * sa2) / SC, yd = (ex * sa2 + ey * ca2) / SC;
+      if (velZ(xd, yd, ca, sa, G)) {
+        var dxv = vu * ca + vv * sa, dyv = -vu * sa + vv * ca;
+        downAngle = Math.atan2(dyv, dxv) * DEG;
+        dirTmp.set(dxv, dyv, 0).normalize();
+        downArrow.position.set(ex, ey, 0);
+        downArrow.setDirection(dirTmp);
+        downArrow.setLength(2.2, 0.5, 0.35);
+      }
+    }
+
+    /* panel */
+    if (step >= 2) {
+      var dot = document.getElementById('dot');
+      if (dot) { dot.setAttribute('cx', ax(alphaDeg).toFixed(1)); dot.setAttribute('cy', ay(CL).toFixed(1)); }
+      setText('v', 'זווית ' + alphaDeg.toFixed(1) + '°');
+      setText('sub', 'מקדם עילוי: ' + CL.toFixed(2));
+      if (step === 2) setText('sub2', 'האוויר מוטה ב־' + Math.abs(downAngle).toFixed(0) + '° כלפי מטה');
+      else setText('sub2', s > 0.5 ? 'סטול: העילוי קרס' : (alphaDeg > 13 ? 'קרוב לסטול' : 'זרימה חלקה'));
+    } else if (step === 1) {
+      setText('v', 'עילוי ' + CL.toFixed(2));
+    }
+
+    /* labels */
+    labelEls[1].hidden = step !== 1;
+    labelEls[2].hidden = step !== 1;
+    labelEls[3].hidden = step < 1 || CL <= 0.12;
+    labelEls[4].hidden = step !== 2;
+    labelEls[5].hidden = !(step === 3 && s > 0.3);
+    place(labelEls[0], X0 + 0.6, 4.0, 0);
+    place(labelEls[1], 0, 2.9, 0);
+    place(labelEls[2], 0, -3.3, 0);
+    place(labelEls[3], 0, Math.max(0.05, CL * 1.6) + 0.5, 0);
+    place(labelEls[4], 5.2, downArrow.position.y - 1.5, 0);
+    place(labelEls[5], 1.6, 2.7, 0);
+
+    renderer.render(scene, camera);
+  }
+
+  setStep(0);
+  alphaDeg = alphaTarget;
+  layout();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
