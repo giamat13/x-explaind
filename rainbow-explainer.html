@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>איך נוצרת קשת בענן?</title>
+<style>
+  :root {
+    --bg: #0a1230;
+    --panel: #111c44;
+    --ink: #eef2ff;
+    --muted: #9fb0e8;
+    --amber: #ffc44d;
+    --sky: #4dd2ff;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+  #top {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 18px 0;
+    pointer-events: none;
+  }
+  #top h1 { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.01em; }
+  #top p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+
+  .lbl {
+    position: fixed; left: 0; top: 0; padding: 3px 10px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; background: rgba(10, 18, 48, .82);
+    pointer-events: none; white-space: nowrap; will-change: transform;
+  }
+  .lbl[hidden] { display: none; }
+
+  #sheet {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: var(--panel);
+    border-radius: 22px 22px 0 0;
+    padding: 14px 18px calc(env(safe-area-inset-bottom, 0px) + 14px);
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, .4);
+  }
+  #dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 10px; }
+  #dots i { width: 22px; height: 6px; border-radius: 3px; background: #2b3a78; display: block; transition: background .2s, width .2s; }
+  #dots i.done { background: #4a5db0; }
+  #dots i.on { background: var(--amber); width: 34px; }
+
+  #mid { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+  #diagram { flex: none; width: 124px; }
+  #diagram svg { width: 100%; height: auto; display: block; background: rgba(255,255,255,.04); border-radius: 12px; }
+  #diagram text { font-family: inherit; }
+  #info { flex: 1; min-width: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+  #info .big { font-size: 24px; font-weight: 800; color: var(--ink); line-height: 1.15; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+  #info .row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+  #info .chip { width: 12px; height: 12px; border-radius: 50%; flex: none; display: block; }
+
+  #cap { margin: 0 0 12px; font-size: 16px; line-height: 1.55; min-height: 7.8em; }
+  #slidelabel { font-size: 14px; color: var(--muted); margin: 0 0 2px; }
+  #slidewrap { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; direction: ltr; font-size: 14px; }
+  #slidewrap[hidden], #slidelabel[hidden] { display: none; }
+  #slider { flex: 1; accent-color: var(--amber); height: 32px; }
+
+  #btns { display: flex; gap: 10px; }
+  #btns button {
+    flex: 1; min-height: 54px; border: 0; border-radius: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #prev { background: #22307a; }
+  #next { background: var(--sky); }
+  #btns button:disabled { opacity: .3; cursor: default; }
+  #btns button:focus-visible, #slider:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
+  #btns button:active:not(:disabled) { transform: scale(.97); }
+
+  @media (prefers-reduced-motion: reduce) { #dots i { transition: none; } }
+  @media (min-width: 700px) {
+    #sheet { left: 50%; right: auto; width: 520px; transform: translateX(-50%); }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="top">
+  <h1>איך נוצרת קשת בענן?</h1>
+  <p>גררו כדי לסובב את התצוגה, צבטו כדי לעשות זום.</p>
+</div>
+
+<div class="lbl" id="l0">אור השמש</div>
+<div class="lbl" id="l1">טיפת גשם</div>
+<div class="lbl" id="l2" hidden>האור יוצא</div>
+<div class="lbl" id="l3" hidden>השמש</div>
+<div class="lbl" id="l4" hidden>אתם</div>
+<div class="lbl" id="l5" hidden>קשת ראשית</div>
+<div class="lbl" id="l6" hidden>קשת שנייה</div>
+<div class="lbl" id="l7" hidden>הנקודה ההפוכה לשמש</div>
+
+<div id="sheet">
+  <div id="dots"></div>
+  <div id="mid">
+    <div id="diagram"></div>
+    <div id="info"></div>
+  </div>
+  <p id="cap"></p>
+  <div id="slidelabel" hidden>איפה האור פוגע בטיפה</div>
+  <div id="slidewrap" hidden>
+    <span>קרוב למרכז</span>
+    <input id="slider" type="range" min="0.1" max="0.99" step="0.005" value="0.86" aria-label="נקודת הפגיעה בטיפה">
+    <span>קרוב לשוליים</span>
+  </div>
+  <div id="btns">
+    <button id="prev" type="button" aria-label="הקודם">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#eef2ff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+    <button id="next" type="button" aria-label="הבא">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#06153a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  var canvas = document.getElementById('c');
+  var sheet = document.getElementById('sheet');
+  var dotsEl = document.getElementById('dots');
+  var diagramEl = document.getElementById('diagram');
+  var infoEl = document.getElementById('info');
+  var capEl = document.getElementById('cap');
+  var prevBtn = document.getElementById('prev');
+  var nextBtn = document.getElementById('next');
+  var slideWrap = document.getElementById('slidewrap');
+  var slideLabel = document.getElementById('slidelabel');
+  var slider = document.getElementById('slider');
+  var labelEls = [0, 1, 2, 3, 4, 5, 6, 7].map(function (i) { return document.getElementById('l' + i); });
+
+  if (!window.THREE) { capEl.textContent = 'לא ניתן לטעון את מנוע התלת־ממד. בדקו את החיבור ורעננו את הדף.'; return; }
+  var renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true }); }
+  catch (e) { capEl.textContent = 'הדפדפן הזה לא תומך ב־WebGL.'; return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+  var V = THREE.Vector3, TAU = Math.PI * 2, DEG = 180 / Math.PI;
+  var scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a1230);
+  var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 400);
+  var root = new THREE.Group();
+  scene.add(root);
+  var dropWorld = new THREE.Group();
+  var skyGroup = new THREE.Group();
+  skyGroup.position.set(0, -3, 7);
+  root.add(dropWorld, skyGroup);
+
+  function circleTex() {
+    var cv = document.createElement('canvas');
+    cv.width = cv.height = 64;
+    var g = cv.getContext('2d');
+    var gr = g.createRadialGradient(32, 32, 0, 32, 32, 30);
+    gr.addColorStop(0, 'rgba(255,255,255,1)');
+    gr.addColorStop(0.55, 'rgba(255,255,255,.9)');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    return new THREE.CanvasTexture(cv);
+  }
+  var tex = circleTex();
+
+  /* ---------- optics ---------- */
+  var COLS = [0xff3b3b, 0xff9a3b, 0xffe14d, 0x5dff7a, 0x4da6ff, 0x8a6bff];
+  var CSS = ['#ff3b3b', '#ff9a3b', '#ffe14d', '#5dff7a', '#4da6ff', '#8a6bff'];
+  var N_REAL = [1.3311, 1.3320, 1.3330, 1.3348, 1.3385, 1.3435];
+  var EXAG = 6;
+  function nExag(n) { return 1.333 + (n - 1.333) * EXAG; }
+
+  function refractVec(d, n, eta) {
+    var cosI = -n.dot(d), k = 1 - eta * eta * (1 - cosI * cosI);
+    if (k < 0) return null;
+    return d.clone().multiplyScalar(eta).addScaledVector(n, eta * cosI - Math.sqrt(k));
+  }
+  function computeDrop(b, n, stages, Rr, ext) {
+    var i = Math.asin(b);
+    var S = new V(-9 * Rr / 3, Rr * b, 0);
+    var P1 = new V(-Rr * Math.cos(i), Rr * b, 0);
+    var d0 = new V(1, 0, 0);
+    var d1 = refractVec(d0, P1.clone().normalize(), 1 / n);
+    var chord = 2 * Rr * Math.cos(Math.asin(b / n));
+    var P2 = P1.clone().addScaledVector(d1, chord);
+    if (stages <= 1) return { pts: [S, P1, P2], end: P2 };
+    var N2 = P2.clone().normalize();
+    var d2 = d1.clone().addScaledVector(N2, -2 * d1.dot(N2));
+    var P3 = P2.clone().addScaledVector(d2, chord);
+    var d3 = refractVec(d2, P3.clone().normalize().negate(), n) || d2;
+    var E = P3.clone().addScaledVector(d3, ext);
+    return { pts: [S, P1, P2, P3, E], end: E, P1: P1, P3: P3 };
+  }
+  function theta(b, n) { return 4 * Math.asin(b / n) * DEG - 2 * Math.asin(b) * DEG; }
+  function bow(n, k) {
+    var best = k === 1 ? -1e9 : 1e9, bi = 0;
+    for (var i = 0.02; i < 1.5707; i += 0.0004) {
+      var r = Math.asin(Math.sin(i) / n);
+      var t = k === 1 ? 4 * r - 2 * i : Math.PI + 2 * i - 6 * r;
+      if (k === 1 ? t > best : t < best) { best = t; bi = i; }
+    }
+    return { deg: best * DEG, b: Math.sin(bi) };
+  }
+  var PRIM = N_REAL.map(function (n) { return bow(n, 1); });
+  var SEC = N_REAL.map(function (n) { return bow(n, 2); });
+
+  /* ---------- ray groups with moving beads ---------- */
+  var BEADS = 4, BSPEED = 7;
+  function makeGroup(parent) {
+    var g = new THREE.Group();
+    parent.add(g);
+    return { obj: g, rays: [], beads: null };
+  }
+  function clearGroup(G) {
+    for (var i = G.obj.children.length - 1; i >= 0; i--) {
+      var c = G.obj.children[i];
+      G.obj.remove(c);
+      if (c.geometry) c.geometry.dispose();
+    }
+    G.rays = []; G.beads = null;
+  }
+  function setRays(G, defs) {
+    clearGroup(G);
+    defs.forEach(function (d) {
+      var n = d.pts.length;
+      if (n < 2) return;
+      var arr = new Float32Array(n * 3), cum = new Float32Array(n);
+      for (var i = 0; i < n; i++) {
+        arr[i * 3] = d.pts[i].x; arr[i * 3 + 1] = d.pts[i].y; arr[i * 3 + 2] = d.pts[i].z;
+        if (i > 0) cum[i] = cum[i - 1] + d.pts[i].distanceTo(d.pts[i - 1]);
+      }
+      var geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+      G.obj.add(new THREE.Line(geo, new THREE.LineBasicMaterial({
+        color: d.color, transparent: true, opacity: d.opacity || 0.6, blending: THREE.AdditiveBlending, depthWrite: false
+      })));
+      var cc = new THREE.Color(d.color);
+      G.rays.push({ arr: arr, cum: cum, n: n, total: cum[n - 1] || 1, col: [cc.r, cc.g, cc.b] });
+    });
+    var cnt = G.rays.length * BEADS;
+    var pos = new Float32Array(cnt * 3), col = new Float32Array(cnt * 3);
+    var bg = new THREE.BufferGeometry();
+    bg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    bg.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    var pts = new THREE.Points(bg, new THREE.PointsMaterial({
+      size: 0.36, vertexColors: true, map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+    }));
+    pts.frustumCulled = false;
+    G.obj.add(pts);
+    G.beads = { pts: pts, pos: pos, col: col };
+  }
+  function updateBeads(G, time) {
+    if (!G.beads) return;
+    var pos = G.beads.pos, col = G.beads.col, idx = 0;
+    for (var r = 0; r < G.rays.length; r++) {
+      var ray = G.rays[r];
+      for (var j = 0; j < BEADS; j++) {
+        var s = (time * BSPEED + j * ray.total / BEADS) % ray.total;
+        var k = 1;
+        while (k < ray.n - 1 && ray.cum[k] < s) k++;
+        var seg = ray.cum[k] - ray.cum[k - 1] || 1;
+        var f = Math.max(0, Math.min(1, (s - ray.cum[k - 1]) / seg));
+        for (var c = 0; c < 3; c++) {
+          pos[idx * 3 + c] = ray.arr[(k - 1) * 3 + c] + (ray.arr[k * 3 + c] - ray.arr[(k - 1) * 3 + c]) * f;
+          col[idx * 3 + c] = ray.col[c];
+        }
+        idx++;
+      }
+    }
+    G.beads.pts.geometry.attributes.position.needsUpdate = true;
+    G.beads.pts.geometry.attributes.color.needsUpdate = true;
+  }
+
+  /* ---------- drop scene ---------- */
+  var RD = 3;
+  var dropSphere = new THREE.Mesh(new THREE.SphereGeometry(RD, 40, 28), new THREE.MeshBasicMaterial({
+    color: 0x6fb4ff, transparent: true, opacity: 0.1, depthWrite: false
+  }));
+  var dropWire = new THREE.LineSegments(new THREE.WireframeGeometry(new THREE.SphereGeometry(RD, 16, 12)),
+    new THREE.LineBasicMaterial({ color: 0x9fc8ff, transparent: true, opacity: 0.12 }));
+  dropWorld.add(dropSphere, dropWire);
+  var gDrop = makeGroup(dropWorld);
+  var normals = null;
+  var bImpact = 0.86, exitEnd = new V(-5, -2, 0);
+
+  function rebuildDrop() {
+    var defs = [], stages = step === 0 ? 1 : 2;
+    for (var c = 0; c < 6; c++) {
+      var d = computeDrop(bImpact, nExag(N_REAL[c]), stages, RD, 8);
+      defs.push({ pts: d.pts, color: COLS[c], opacity: 0.55 });
+      if (c === 0 && d.end) exitEnd.copy(d.end);
+      if (c === 2 && d.P1 && stages > 1) {
+        if (normals) { dropWorld.remove(normals); normals.geometry.dispose(); }
+        var ng = new THREE.BufferGeometry().setFromPoints([
+          d.P1.clone().multiplyScalar(1.6), d.P1.clone().multiplyScalar(0.4),
+          d.P3.clone().multiplyScalar(1.6), d.P3.clone().multiplyScalar(0.4)
+        ]);
+        normals = new THREE.LineSegments(ng, new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.25, gapSize: 0.2, transparent: true, opacity: 0.45 }));
+        normals.computeLineDistances();
+        dropWorld.add(normals);
+      }
+    }
+    if (stages === 1 && normals) { dropWorld.remove(normals); normals.geometry.dispose(); normals = null; }
+    if (stages === 1) {
+      var d0 = computeDrop(bImpact, nExag(N_REAL[2]), 1, RD, 8);
+      var ng2 = new THREE.BufferGeometry().setFromPoints([d0.pts[1].clone().multiplyScalar(1.6), d0.pts[1].clone().multiplyScalar(0.4)]);
+      normals = new THREE.LineSegments(ng2, new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.25, gapSize: 0.2, transparent: true, opacity: 0.45 }));
+      normals.computeLineDistances();
+      dropWorld.add(normals);
+    }
+    setRays(gDrop, defs);
+  }
+
+  /* ---------- sky scene ---------- */
+  var D = 14, ELEV = 20 * Math.PI / 180;
+  var sunDir = new V(0, Math.sin(ELEV), Math.cos(ELEV));
+  var axis = new V(0, -Math.sin(ELEV), -Math.cos(ELEV));
+  var uV = new V(1, 0, 0), vV = axis.clone().cross(uV).normalize();
+  function conePoint(thetaDeg, ph, dist) {
+    var t = thetaDeg / DEG;
+    var dir = axis.clone().multiplyScalar(Math.cos(t))
+      .addScaledVector(uV, Math.sin(t) * Math.cos(ph)).addScaledVector(vV, Math.sin(t) * Math.sin(ph));
+    return dir.multiplyScalar(dist);
+  }
+
+  var ground = new THREE.Mesh(new THREE.CircleGeometry(17, 64), new THREE.MeshBasicMaterial({ color: 0x123a2a, side: THREE.DoubleSide }));
+  ground.rotation.x = -Math.PI / 2; ground.position.y = -0.05;
+  skyGroup.add(ground);
+  var gridRing = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.CircleGeometry(17, 64)), new THREE.LineBasicMaterial({ color: 0x2f7a5e }));
+  gridRing.rotation.x = -Math.PI / 2; gridRing.position.y = -0.04;
+  skyGroup.add(gridRing);
+
+  var obs = new THREE.Group();
+  var ob = new THREE.Mesh(new THREE.ConeGeometry(0.4, 1.2, 14), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  ob.position.y = 0.6;
+  var oh = new THREE.Mesh(new THREE.SphereGeometry(0.28, 14, 14), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  oh.position.y = 1.45;
+  obs.add(ob, oh);
+  skyGroup.add(obs);
+
+  var sunMesh = new THREE.Group();
+  sunMesh.add(new THREE.Mesh(new THREE.SphereGeometry(1.1, 20, 20), new THREE.MeshBasicMaterial({ color: 0xfff1b8 })));
+  sunMesh.add(new THREE.Mesh(new THREE.SphereGeometry(2.2, 20, 20), new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false })));
+  sunMesh.position.copy(sunDir.clone().multiplyScalar(17));
+  skyGroup.add(sunMesh);
+
+  var axisLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new V(0, 1.4, 0), axis.clone().multiplyScalar(D)]),
+    new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.5, gapSize: 0.4, transparent: true, opacity: 0.5 }));
+  axisLine.computeLineDistances();
+  skyGroup.add(axisLine);
+
+  (function () {
+    var n = 420, arr = new Float32Array(n * 3);
+    for (var i = 0; i < n; i++) {
+      arr[i * 3] = (Math.random() - 0.5) * 26;
+      arr[i * 3 + 1] = 0.4 + Math.random() * 11;
+      arr[i * 3 + 2] = -2 - Math.random() * 14;
+    }
+    var g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+    skyGroup.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0x9fc8ff, size: 0.13, map: tex, transparent: true, opacity: 0.5, depthWrite: false })));
+  })();
+
+  function makeRing(thetaDeg, color) {
+    var N = 200, lp = new Float32Array(N * 3), pp = [];
+    for (var k = 0; k < N; k++) {
+      var p = conePoint(thetaDeg, k / N * TAU, D);
+      lp[k * 3] = p.x; lp[k * 3 + 1] = p.y; lp[k * 3 + 2] = p.z;
+      if (k % 2 === 0) pp.push(p.x, p.y, p.z);
+    }
+    var lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.BufferAttribute(lp, 3));
+    var g = new THREE.Group();
+    g.add(new THREE.LineLoop(lg, new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })));
+    var pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.Float32BufferAttribute(pp, 3));
+    g.add(new THREE.Points(pg, new THREE.PointsMaterial({ color: color, size: 0.4, map: tex, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending })));
+    return g;
+  }
+  var primGroup = new THREE.Group(), secGroup = new THREE.Group();
+  for (var ci = 0; ci < 6; ci++) {
+    primGroup.add(makeRing(PRIM[ci].deg, COLS[ci]));
+    secGroup.add(makeRing(SEC[ci].deg, COLS[ci]));
+  }
+  skyGroup.add(primGroup, secGroup);
+
+  var gSky = makeGroup(skyGroup), gSky2 = makeGroup(skyGroup);
+  var topPrim = new V(), topSec = new V();
+  function activeDrops(thetaDeg, count) {
+    var cand = [];
+    for (var k = 0; k < 360; k++) {
+      var p = conePoint(thetaDeg, k / 360 * TAU, D);
+      if (p.y > 1.4) cand.push(p);
+    }
+    var out = [];
+    for (var j = 0; j < count && cand.length; j++) out.push(cand[Math.floor((j + 0.5) * cand.length / count)]);
+    return out;
+  }
+  function raysFor(thetas, colorIdx, count) {
+    var defs = [], marks = [];
+    thetas.forEach(function (th, ti) {
+      activeDrops(th, count).forEach(function (p, di) {
+        if ((di + ti) % 1 === 0) {
+          defs.push({ pts: [p.clone().addScaledVector(sunDir, 9), p], color: 0xffffff, opacity: 0.35 });
+          defs.push({ pts: [p, new V(0, 1.4, 0)], color: COLS[colorIdx[ti]], opacity: 0.6 });
+          marks.push(p, COLS[colorIdx[ti]]);
+        }
+      });
+    });
+    return defs;
+  }
+  setRays(gSky, raysFor([PRIM[0].deg, PRIM[5].deg], [0, 5], 4));
+  setRays(gSky2, raysFor([SEC[0].deg, SEC[5].deg], [0, 5], 3));
+  (function () {
+    var maxY = -1, k, p;
+    for (k = 0; k < 720; k++) { p = conePoint((PRIM[0].deg + PRIM[5].deg) / 2, k / 720 * TAU, D); if (p.y > maxY) { maxY = p.y; topPrim.copy(p); } }
+    maxY = -1;
+    for (k = 0; k < 720; k++) { p = conePoint((SEC[0].deg + SEC[5].deg) / 2, k / 720 * TAU, D); if (p.y > maxY) { maxY = p.y; topSec.copy(p); } }
+  })();
+
+  /* ---------- panel graphics ---------- */
+  var step = 0, time = 0, mode = '';
+  var TEXTS = [
+    'אור השמש נראה לבן, אבל הוא תערובת של צבעים. כשהוא נכנס לטיפת גשם הוא מאט ומשנה כיוון, וכל צבע משנה כיוון קצת אחרת. כך הצבעים מתחילים להיפרד. ההפרדה בציור מוגזמת פי 6.',
+    'בתוך הטיפה האור פוגע בדופן האחורית ומוחזר, ובדרך החוצה נשבר שוב. הוא יוצא כמעט חזרה לכיוון שממנו הגיע: אדום בזווית של כ־42° מהכיוון ההפוך לשמש, וסגול בזווית של כ־40°.',
+    'שנו את המקום שבו האור פוגע בטיפה ותראו את זווית היציאה בגרף. יש לה מקסימום ליד 42°, וקרניים רבות מצטברות סביבו. לכן הצבע חזק בדיוק בזווית הזו.',
+    'בשמיים יש אלפי טיפות, אבל רק טיפות שנמצאות בזווית 42° מהנקודה ההפוכה לשמש שולחות אלינו אדום, וסגול מגיע מזווית 40°. הטיפות האלה יוצרות חרוט, והקשת היא החלק שמעל האופק. גררו כדי לסובב.',
+    'לפעמים האור מוחזר פעמיים בתוך הטיפה, ואז נוצרת קשת שנייה, חלשה יותר, בזווית של 50° עד 54°. הצבעים בה בסדר הפוך: אדום בפנים וסגול בחוץ.'
+  ];
+
+  function pxy(p, cx, cy, s) { return (cx + p.x * s).toFixed(1) + ',' + (cy - p.y * s).toFixed(1); }
+
+  function diagram() {
+    var s = '';
+    if (step === 0) {
+      s += '<rect x="0" y="42" width="120" height="42" fill="rgba(77,166,255,.22)"/>';
+      s += '<line x1="60" y1="8" x2="60" y2="80" stroke="#fff" stroke-width="1.2" stroke-dasharray="3 3" opacity=".6"/>';
+      s += '<line x1="12" y1="12" x2="60" y2="42" stroke="#fff" stroke-width="3" stroke-linecap="round"/>';
+      s += '<line x1="60" y1="42" x2="84" y2="80" stroke="#ff3b3b" stroke-width="2.6" stroke-linecap="round"/>';
+      s += '<line x1="60" y1="42" x2="88" y2="80" stroke="#5dff7a" stroke-width="2.6" stroke-linecap="round"/>';
+      s += '<line x1="60" y1="42" x2="93" y2="80" stroke="#8a6bff" stroke-width="2.6" stroke-linecap="round"/>';
+      s += '<text x="6" y="38" font-size="10" fill="#eef2ff">אוויר</text><text x="6" y="62" font-size="10" fill="#eef2ff">מים</text>';
+    } else if (step === 1) {
+      var R = 30, cx = 60, cy = 42;
+      s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="rgba(111,180,255,.12)" stroke="#9fc8ff" stroke-width="1.6"/>';
+      [[0, 4], [5, 4]].forEach(function (pair) {
+        var d = computeDrop(0.86, nExag(N_REAL[pair[0]]), 2, R, 26);
+        var path = 'M' + pxy(d.pts[0], cx, cy, 1);
+        for (var i = 1; i < d.pts.length; i++) path += ' L' + pxy(d.pts[i], cx, cy, 1);
+        s += '<path d="' + path + '" fill="none" stroke="' + CSS[pair[0]] + '" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>';
+      });
+    } else if (step === 2) {
+      s += '<g id="graph"></g>';
+    } else if (step === 3) {
+      s += '<line x1="20" y1="60" x2="112" y2="60" stroke="#fff" stroke-width="1.2" stroke-dasharray="3 3" opacity=".6"/>';
+      s += '<line x1="20" y1="60" x2="' + (20 + 70 * Math.cos(42 / DEG)).toFixed(1) + '" y2="' + (60 - 70 * Math.sin(42 / DEG)).toFixed(1) + '" stroke="#ff3b3b" stroke-width="2.6"/>';
+      s += '<line x1="20" y1="60" x2="' + (20 + 70 * Math.cos(40 / DEG)).toFixed(1) + '" y2="' + (60 - 70 * Math.sin(40 / DEG)).toFixed(1) + '" stroke="#8a6bff" stroke-width="2.6"/>';
+      s += '<path d="M56 60A36 36 0 0 0 ' + (20 + 36 * Math.cos(42 / DEG)).toFixed(1) + ' ' + (60 - 36 * Math.sin(42 / DEG)).toFixed(1) + '" fill="none" stroke="#ffc44d" stroke-width="1.6"/>';
+      s += '<text x="60" y="52" font-size="11" font-weight="700" fill="#ffc44d">42°</text>';
+      s += '<circle cx="20" cy="60" r="4.5" fill="#fff"/>';
+      s += '<text x="8" y="78" font-size="9" fill="#eef2ff">אתם</text><text x="62" y="78" font-size="9" fill="#eef2ff">ציר הקשת</text>';
+    } else {
+      var rp = [34, 32, 30, 28], cp = ['#ff3b3b', '#ffe14d', '#5dff7a', '#8a6bff'];
+      var rs = [46, 48, 50, 52], cs = ['#ff3b3b', '#ffe14d', '#5dff7a', '#8a6bff'];
+      for (var i = 0; i < 4; i++) s += '<path d="M' + (60 - rp[i]) + ' 80A' + rp[i] + ' ' + rp[i] + ' 0 0 1 ' + (60 + rp[i]) + ' 80" fill="none" stroke="' + cp[i] + '" stroke-width="2.4"/>';
+      for (var j = 0; j < 4; j++) s += '<path d="M' + (60 - rs[j]) + ' 80A' + rs[j] + ' ' + rs[j] + ' 0 0 1 ' + (60 + rs[j]) + ' 80" fill="none" stroke="' + cs[j] + '" stroke-width="2" opacity=".6"/>';
+      s += '<line x1="0" y1="80" x2="120" y2="80" stroke="#2f7a5e" stroke-width="3"/>';
+    }
+    diagramEl.innerHTML = '<svg viewBox="0 0 120 84" role="img" aria-label="שרטוט לשלב ' + (step + 1) + '">' + s + '</svg>';
+    if (step === 2) drawGraph();
+  }
+
+  function drawGraph() {
+    var g = document.getElementById('graph');
+    if (!g) return;
+    var pts = '', maxT = 0, k;
+    for (k = 0; k <= 60; k++) {
+      var b = 0.02 + (0.98 - 0.02) * k / 60;
+      var t = theta(b, N_REAL[0]);
+      pts += (8 + b * 104).toFixed(1) + ',' + (74 - t / 45 * 62).toFixed(1) + ' ';
+    }
+    var cur = theta(bImpact, N_REAL[0]);
+    var pk = PRIM[0];
+    g.innerHTML = '<line x1="8" y1="74" x2="112" y2="74" stroke="#9fb0e8" stroke-width="1"/>' +
+      '<line x1="8" y1="' + (74 - pk.deg / 45 * 62).toFixed(1) + '" x2="112" y2="' + (74 - pk.deg / 45 * 62).toFixed(1) + '" stroke="#ffc44d" stroke-width="1" stroke-dasharray="3 3"/>' +
+      '<polyline points="' + pts + '" fill="none" stroke="#ff6b6b" stroke-width="2.4" stroke-linejoin="round"/>' +
+      '<circle cx="' + (8 + bImpact * 104).toFixed(1) + '" cy="' + (74 - cur / 45 * 62).toFixed(1) + '" r="4.5" fill="#fff"/>' +
+      '<text x="10" y="11" font-size="9" fill="#eef2ff">זווית היציאה</text>';
+  }
+
+  function info() {
+    var h = '';
+    if (step === 0) h = '<div class="row"><span class="chip" style="background:#fff"></span><span>אור השמש, כל הצבעים יחד</span></div><div class="row"><span class="chip" style="background:linear-gradient(90deg,#ff3b3b,#5dff7a,#8a6bff)"></span><span>הצבעים נשברים בזוויות שונות</span></div>';
+    else if (step === 1) h = '<div class="big">' + PRIM[0].deg.toFixed(1) + '° ↔ ' + PRIM[5].deg.toFixed(1) + '°</div><div>אדום לעומת סגול, ביחס לכיוון ההפוך לשמש.</div>';
+    else if (step === 2) h = '<div class="big" id="v2"></div><div id="s2"></div>';
+    else if (step === 3) h = '<div class="row"><span class="chip" style="background:#ff3b3b"></span><span>אדום: ' + PRIM[0].deg.toFixed(1) + '° (בחוץ)</span></div><div class="row"><span class="chip" style="background:#8a6bff"></span><span>סגול: ' + PRIM[5].deg.toFixed(1) + '° (בפנים)</span></div>';
+    else h = '<div class="row"><span class="chip" style="background:#ff3b3b"></span><span>ראשית: אדום בחוץ, ' + PRIM[0].deg.toFixed(0) + '°</span></div><div class="row"><span class="chip" style="background:#8a6bff"></span><span>שנייה: סגול בחוץ, ' + SEC[5].deg.toFixed(0) + '°</span></div>';
+    infoEl.innerHTML = h;
+    updateReadout();
+  }
+  function updateReadout() {
+    if (step !== 2) return;
+    var v = document.getElementById('v2'), s = document.getElementById('s2');
+    var t = theta(bImpact, N_REAL[0]);
+    if (v) v.textContent = t.toFixed(1) + '°';
+    if (s) s.textContent = Math.abs(bImpact - PRIM[0].b) < 0.03 ? 'כאן נמצא המקסימום: הרבה אור יוצא בזווית הזו.' : 'רחוק מהמקסימום, פחות קרניים מגיעות לזווית הזו.';
+  }
+
+  for (var di = 0; di < TEXTS.length; di++) dotsEl.appendChild(document.createElement('i'));
+
+  var userY = 0.3, userX = 0.15;
+  function setStep(n) {
+    step = Math.max(0, Math.min(TEXTS.length - 1, n));
+    capEl.textContent = TEXTS[step];
+    Array.prototype.forEach.call(dotsEl.children, function (d, i) { d.className = i === step ? 'on' : (i < step ? 'done' : ''); });
+    prevBtn.disabled = step === 0;
+    nextBtn.disabled = step === TEXTS.length - 1;
+
+    var newMode = step <= 2 ? 'drop' : 'sky';
+    if (newMode !== mode) {
+      mode = newMode;
+      if (mode === 'drop') { userY = 0.3; userX = 0.15; } else { userY = -0.65; userX = 0.28; }
+    }
+    dropWorld.visible = mode === 'drop';
+    skyGroup.visible = mode === 'sky';
+    gSky2.obj.visible = step === 4;
+    secGroup.visible = step === 4;
+
+    slideWrap.hidden = step !== 2;
+    slideLabel.hidden = step !== 2;
+    if (step === 1 || step === 0) bImpact = 0.86;
+    if (step === 2) slider.value = String(bImpact);
+
+    labelEls[0].hidden = mode !== 'drop';
+    labelEls[1].hidden = mode !== 'drop';
+    labelEls[2].hidden = !(mode === 'drop' && step >= 1);
+    labelEls[3].hidden = mode !== 'sky';
+    labelEls[4].hidden = mode !== 'sky';
+    labelEls[5].hidden = mode !== 'sky';
+    labelEls[6].hidden = step !== 4;
+    labelEls[7].hidden = mode !== 'sky';
+
+    if (mode === 'drop') rebuildDrop();
+    diagram();
+    info();
+    layout();
+  }
+  prevBtn.addEventListener('click', function () { setStep(step - 1); });
+  nextBtn.addEventListener('click', function () { setStep(step + 1); });
+  slider.addEventListener('input', function () {
+    bImpact = parseFloat(slider.value) || 0.86;
+    rebuildDrop();
+    drawGraph();
+    updateReadout();
+  });
+
+  /* layout */
+  var zoom = 1;
+  function layout() {
+    var w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    var aspect = w / h, portrait = aspect < 1.05;
+    dropWorld.rotation.z = portrait ? -Math.PI / 2 : 0;
+    var half = Math.tan(22.5 * Math.PI / 180);
+    var dist;
+    if (mode === 'drop') dist = portrait ? 30 : Math.max(17, 17 / (2 * half * Math.min(aspect, 1.8)));
+    else dist = portrait ? 54 : Math.max(36, 34 / (2 * half * Math.min(aspect, 1.8)));
+    dist = dist / zoom;
+    camera.position.set(0, 0, dist);
+    camera.lookAt(0, 0, 0);
+    var visibleH = 2 * half * dist;
+    var sheetH = sheet.getBoundingClientRect().height;
+    root.position.y = (sheetH / h) * visibleH * 0.5 - 0.03 * visibleH;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', layout);
+
+  /* input */
+  var pointers = {}, pinchStart = 0, zoomStart = 1, lastInteract = 0;
+  function pDist() {
+    var ks = Object.keys(pointers);
+    var p1 = pointers[ks[0]], p2 = pointers[ks[1]];
+    return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+  }
+  canvas.addEventListener('pointerdown', function (e) {
+    pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+    if (Object.keys(pointers).length === 2) { pinchStart = pDist(); zoomStart = zoom; }
+    lastInteract = performance.now();
+  });
+  canvas.addEventListener('pointermove', function (e) {
+    var p = pointers[e.pointerId];
+    if (!p) return;
+    var dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    lastInteract = performance.now();
+    var n = Object.keys(pointers).length;
+    if (n === 1) {
+      userY += dx * 0.008;
+      userX = Math.max(-0.3, Math.min(1.3, userX + dy * 0.006));
+    } else if (n >= 2 && pinchStart > 0) {
+      zoom = Math.max(0.6, Math.min(2.4, zoomStart * pDist() / pinchStart));
+      layout();
+    }
+  });
+  function up(e) {
+    delete pointers[e.pointerId];
+    if (Object.keys(pointers).length < 2) pinchStart = 0;
+    lastInteract = performance.now();
+  }
+  canvas.addEventListener('pointerup', up);
+  canvas.addEventListener('pointercancel', up);
+  canvas.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    zoom = Math.max(0.6, Math.min(2.4, zoom * (e.deltaY < 0 ? 1.08 : 0.92)));
+    layout();
+  }, { passive: false });
+
+  /* labels */
+  var v3 = new V();
+  function place(lbl, parent, p, dy) {
+    if (lbl.hidden) return;
+    v3.copy(p); v3.y += dy || 0;
+    parent.localToWorld(v3);
+    v3.project(camera);
+    var px = (v3.x * 0.5 + 0.5) * window.innerWidth;
+    var py = (-v3.y * 0.5 + 0.5) * window.innerHeight;
+    var w = lbl.offsetWidth;
+    px = Math.max(6, Math.min(window.innerWidth - w - 6, px - w / 2));
+    lbl.style.transform = 'translate(' + px + 'px,' + py + 'px) translateY(-100%)';
+  }
+
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var last = performance.now() / 1000;
+  var tmpV = new V();
+  function frame(t) {
+    requestAnimationFrame(frame);
+    var now = t / 1000;
+    var dt = Math.min(0.05, Math.max(0.001, now - last));
+    last = now; time += dt;
+
+    if (mode === 'drop') updateBeads(gDrop, time);
+    else { updateBeads(gSky, time); if (step === 4) updateBeads(gSky2, time); }
+
+    var idle = performance.now() - lastInteract > 2500 && Object.keys(pointers).length === 0;
+    root.rotation.y = userY + (idle && !reduce ? Math.sin(time * 0.3) * 0.12 : 0);
+    root.rotation.x = userX;
+
+    scene.updateMatrixWorld(true);
+    camera.updateMatrixWorld(true);
+    if (mode === 'drop') {
+      place(labelEls[0], dropWorld, tmpV.set(-9, RD * bImpact, 0), 0.9);
+      place(labelEls[1], dropWorld, tmpV.set(0, RD, 0), 0.6);
+      place(labelEls[2], dropWorld, exitEnd, 0.9);
+    } else {
+      place(labelEls[3], skyGroup, sunMesh.position, 2.0);
+      place(labelEls[4], skyGroup, tmpV.set(0, 1.8, 0), 0.7);
+      place(labelEls[5], skyGroup, topPrim, 0.9);
+      place(labelEls[6], skyGroup, topSec, 0.9);
+      place(labelEls[7], skyGroup, axis.clone().multiplyScalar(D), 0.4);
+    }
+    renderer.render(scene, camera);
+  }
+
+  setStep(0);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
