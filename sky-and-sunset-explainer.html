@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>למה השמיים כחולים והשקיעה אדומה?</title>
+<style>
+  :root {
+    --bg: #0b1330;
+    --panel: #111c44;
+    --ink: #eef2ff;
+    --muted: #9fb0e8;
+    --amber: #ffc44d;
+    --sky: #4dd2ff;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+  #top {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 18px 0;
+    pointer-events: none;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, .6);
+  }
+  #top h1 { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.01em; }
+  #top p { margin: 4px 0 0; font-size: 13px; color: #cdd7ff; }
+
+  .lbl {
+    position: fixed; left: 0; top: 0; padding: 3px 10px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; background: rgba(11, 19, 48, .78);
+    pointer-events: none; white-space: nowrap; will-change: transform;
+  }
+
+  #sheet {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: var(--panel);
+    border-radius: 22px 22px 0 0;
+    padding: 14px 18px calc(env(safe-area-inset-bottom, 0px) + 14px);
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, .35);
+  }
+  #dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 10px; }
+  #dots i { width: 22px; height: 6px; border-radius: 3px; background: #2b3a78; display: block; transition: background .2s, width .2s; }
+  #dots i.done { background: #4a5db0; }
+  #dots i.on { background: var(--amber); width: 34px; }
+
+  #mid { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 10px; }
+  #swatches { display: flex; gap: 12px; flex: none; }
+  .sw { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+  .sw i { width: 46px; height: 46px; border-radius: 50%; display: block; border: 2px solid rgba(255,255,255,.35); }
+  #bars { flex: 1; min-width: 0; }
+  #barcap { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  #cols { display: flex; align-items: flex-end; justify-content: space-around; height: 62px; gap: 8px; }
+  .col { flex: 1; height: 100%; border-radius: 6px; background: #1d2b6a; position: relative; overflow: hidden; max-width: 46px; }
+  .col b { position: absolute; left: 0; right: 0; bottom: 0; display: block; border-radius: 6px; }
+
+  #cap { margin: 0 0 12px; font-size: 16px; line-height: 1.55; min-height: 4.7em; }
+  #slidelabel { font-size: 14px; color: var(--muted); margin: 0 0 2px; }
+  #slidewrap { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; direction: ltr; font-size: 14px; }
+  #slidewrap[hidden], #slidelabel[hidden] { display: none; }
+  #elev { flex: 1; accent-color: #ff8a3d; height: 32px; }
+
+  #btns { display: flex; gap: 10px; }
+  #btns button {
+    flex: 1; min-height: 54px; border: 0; border-radius: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #prev { background: #22307a; }
+  #next { background: var(--sky); }
+  #btns button:disabled { opacity: .3; cursor: default; }
+  #btns button:focus-visible, #elev:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
+  #btns button:active:not(:disabled) { transform: scale(.97); }
+
+  @media (prefers-reduced-motion: reduce) { #dots i { transition: none; } }
+  @media (min-width: 700px) {
+    #sheet { left: 50%; right: auto; width: 520px; transform: translateX(-50%); }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="top">
+  <h1>למה השמיים כחולים והשקיעה אדומה?</h1>
+  <p>גררו כדי לסובב את התצוגה, צבטו כדי לעשות זום.</p>
+</div>
+
+<div class="lbl" id="l0">השמש</div>
+<div class="lbl" id="l1">אתם</div>
+<div class="lbl" id="l2">האטמוספרה</div>
+
+<div id="sheet">
+  <div id="dots"></div>
+  <div id="mid">
+    <div id="swatches">
+      <div class="sw"><i id="swSun"></i><span>צבע השמש</span></div>
+      <div class="sw"><i id="swSky"></i><span>צבע השמיים</span></div>
+    </div>
+    <div id="bars">
+      <div id="barcap">כמה אור מכל צבע מגיע אלינו</div>
+      <div id="cols">
+        <div class="col"><b style="background:#ff4d4d"></b></div>
+        <div class="col"><b style="background:#b8ff5c"></b></div>
+        <div class="col"><b style="background:#4da6ff"></b></div>
+        <div class="col"><b style="background:#a66bff"></b></div>
+      </div>
+    </div>
+  </div>
+  <p id="cap"></p>
+  <div id="slidelabel" hidden>גובה השמש: גררו כדי להנמיך אותה</div>
+  <div id="slidewrap" hidden>
+    <span>שקיעה</span>
+    <input id="elev" type="range" min="5" max="90" step="1" value="22" aria-label="גובה השמש">
+    <span>צהריים</span>
+  </div>
+  <div id="btns">
+    <button id="prev" type="button" aria-label="הקודם">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#eef2ff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+    <button id="next" type="button" aria-label="הבא">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#06153a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  var canvas = document.getElementById('c');
+  var sheet = document.getElementById('sheet');
+  var dotsEl = document.getElementById('dots');
+  var capEl = document.getElementById('cap');
+  var prevBtn = document.getElementById('prev');
+  var nextBtn = document.getElementById('next');
+  var slideWrap = document.getElementById('slidewrap');
+  var slideLabel = document.getElementById('slidelabel');
+  var elev = document.getElementById('elev');
+  var swSun = document.getElementById('swSun');
+  var swSky = document.getElementById('swSky');
+  var barEls = Array.prototype.slice.call(document.querySelectorAll('#cols b'));
+  var labels = [0, 1, 2].map(function (i) { return document.getElementById('l' + i); });
+
+  var TEXTS = [
+    'אור השמש נראה לבן, אבל הוא תערובת של כל צבעי הקשת. כאן רואים חלק מהצבעים נוסעים יחד אל הצופה. בלי אוויר לא היה מה שיפזר אותם, והשמיים היו שחורים.',
+    'האוויר מלא מולקולות זעירות. כשאור פוגש אותן הוא מתפזר לכל הכיוונים, וצבעים קצרי גל, כמו כחול וסגול, מתפזרים הרבה יותר מאדום. שימו לב מי יוצא מהקרן.',
+    'בצהריים הדרך של האור באוויר קצרה. הכחול המפוזר מגיע אלינו מכל כיוון בשמיים, ולכן השמיים כחולים והשמש נראית צהבהבה. הסגול קיים, אבל יש ממנו מעט בשמש והעין רגישה אליו פחות.',
+    'בשקיעה האור עובר דרך ארוכה בהרבה באוויר. רוב הכחול כבר התפזר הצידה, ונשארים אדום וכתום. גררו את המחוון כדי להנמיך את השמש ולראות איך המדדים משתנים.'
+  ];
+  var CFG = [
+    { scatter: false, alpha: 55 },
+    { scatter: true, alpha: 55 },
+    { scatter: true, alpha: 85 },
+    { scatter: true, alpha: 22, slider: true }
+  ];
+
+  if (!window.THREE) { capEl.textContent = 'לא ניתן לטעון את מנוע התלת־ממד. בדקו את החיבור ורעננו את הדף.'; return; }
+  var renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true }); }
+  catch (e) { capEl.textContent = 'הדפדפן הזה לא תומך ב־WebGL.'; return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+  var scene = new THREE.Scene();
+  var bgColor = new THREE.Color(0x0b1330);
+  scene.background = bgColor;
+  var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 300);
+
+  var root = new THREE.Group();
+  var world = new THREE.Group();
+  world.position.set(-7, -4, 0);
+  root.add(world);
+  scene.add(root);
+
+  var TAU = Math.PI * 2;
+  var Re = 24, H = 4, Ra = Re + H;
+  var C = new THREE.Vector3(0, -Re, 0);
+  var O = new THREE.Vector3(0, 0, 0);
+  var SPEED = 16;
+  var SIG = [0.16, 0.42, 0.94, 1.5];
+  var BASE = [[1, 0.3, 0.3], [0.72, 1, 0.36], [0.3, 0.65, 1], [0.65, 0.42, 1]];
+  var WEIGHT = [0.28, 0.3, 0.25, 0.17];
+
+  /* earth and atmosphere slabs */
+  function sector(r0, r1, t0, t1) {
+    var s = new THREE.Shape();
+    s.absarc(0, 0, r1, t0, t1, false);
+    s.absarc(0, 0, r0, t1, t0, true);
+    return s;
+  }
+  var T0 = Math.PI / 2 - 0.75, T1 = Math.PI / 2 + 0.25;
+  function slab(r0, r1, color, opacity, edgeColor, edgeOpacity) {
+    var g = new THREE.ExtrudeGeometry(sector(r0, r1, T0, T1), { depth: 6, bevelEnabled: false, curveSegments: 48 });
+    g.translate(0, 0, -3);
+    var m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+      color: color, transparent: opacity < 1, opacity: opacity, depthWrite: opacity >= 1, side: THREE.DoubleSide
+    }));
+    m.position.copy(C);
+    var e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 20), new THREE.LineBasicMaterial({ color: edgeColor, transparent: true, opacity: edgeOpacity }));
+    e.position.copy(C);
+    world.add(m, e);
+    return m;
+  }
+  slab(Re - 2.5, Re, 0x14493f, 1, 0x3fb59a, 0.6);
+  var atmo = slab(Re, Ra, 0x6fb4ff, 0.10, 0x9fc8ff, 0.45);
+
+  /* air molecules */
+  function circleTex() {
+    var cv = document.createElement('canvas');
+    cv.width = cv.height = 64;
+    var g = cv.getContext('2d');
+    var gr = g.createRadialGradient(32, 32, 0, 32, 32, 30);
+    gr.addColorStop(0, 'rgba(255,255,255,1)');
+    gr.addColorStop(0.55, 'rgba(255,255,255,.9)');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    return new THREE.CanvasTexture(cv);
+  }
+  var tex = circleTex();
+  (function () {
+    var n = 800, arr = new Float32Array(n * 3);
+    for (var i = 0; i < n; i++) {
+      var r = Re + 0.15 + Math.random() * (H - 0.3);
+      var ph = -0.2 + Math.random() * 0.9;
+      arr[i * 3] = r * Math.sin(ph);
+      arr[i * 3 + 1] = r * Math.cos(ph) - Re;
+      arr[i * 3 + 2] = (Math.random() - 0.5) * 5.6;
+    }
+    var g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+    world.add(new THREE.Points(g, new THREE.PointsMaterial({
+      color: 0xb7d6ff, size: 0.16, map: tex, transparent: true, opacity: 0.55, depthWrite: false
+    })));
+  })();
+
+  /* observer */
+  var obs = new THREE.Group();
+  var body = new THREE.Mesh(new THREE.ConeGeometry(0.38, 1.1, 14), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  body.position.y = 0.55;
+  var head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 14), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  head.position.y = 1.35;
+  obs.add(body, head);
+  world.add(obs);
+
+  /* sun */
+  var sun = new THREE.Group();
+  sun.add(new THREE.Mesh(new THREE.SphereGeometry(0.9, 24, 24), new THREE.MeshBasicMaterial({ color: 0xfff1b8 })));
+  sun.add(new THREE.Mesh(new THREE.SphereGeometry(1.8, 24, 24), new THREE.MeshBasicMaterial({
+    color: 0xffe08a, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false
+  })));
+  world.add(sun);
+
+  /* photon pool */
+  var PN = 1700;
+  var pPos = new Float32Array(PN * 3), pCol = new Float32Array(PN * 3);
+  var pBase = new Float32Array(PN * 3), pVel = new Float32Array(PN * 3);
+  var pLife = new Float32Array(PN), pMax = new Float32Array(PN);
+  var pState = new Uint8Array(PN), pCi = new Int8Array(PN);
+  var head_i = 0;
+  var pGeo = new THREE.BufferGeometry();
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+  pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
+  var pts = new THREE.Points(pGeo, new THREE.PointsMaterial({
+    size: 0.4, vertexColors: true, map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+  }));
+  pts.frustumCulled = false;
+  world.add(pts);
+
+  function spawn(state, x, y, z, vx, vy, vz, ci, mult, life) {
+    var i = head_i; head_i = (head_i + 1) % PN;
+    pState[i] = state; pCi[i] = ci;
+    pPos[i * 3] = x; pPos[i * 3 + 1] = y; pPos[i * 3 + 2] = z;
+    pVel[i * 3] = vx; pVel[i * 3 + 1] = vy; pVel[i * 3 + 2] = vz;
+    var b = BASE[ci];
+    pBase[i * 3] = b[0] * mult; pBase[i * 3 + 1] = b[1] * mult; pBase[i * 3 + 2] = b[2] * mult;
+    pLife[i] = life; pMax[i] = life;
+  }
+  function kill(i) { pState[i] = 0; pCol[i * 3] = 0; pCol[i * 3 + 1] = 0; pCol[i * 3 + 2] = 0; }
+
+  /* state */
+  var step = 0, scatterOn = false, alpha = 55, alphaTarget = 55, time = 0, emitAcc = 0;
+  var s = new THREE.Vector3(), sunPos = new THREE.Vector3(), Lpath = 4;
+  var barCur = [1, 1, 1, 1];
+  var sunRGB = [1, 1, 1], skyRGB = [0.02, 0.03, 0.08];
+
+  for (var di = 0; di < CFG.length; di++) dotsEl.appendChild(document.createElement('i'));
+
+  function setStep(n) {
+    step = Math.max(0, Math.min(CFG.length - 1, n));
+    var cfg = CFG[step];
+    capEl.textContent = TEXTS[step];
+    Array.prototype.forEach.call(dotsEl.children, function (d, i) { d.className = i === step ? 'on' : (i < step ? 'done' : ''); });
+    prevBtn.disabled = step === 0;
+    nextBtn.disabled = step === CFG.length - 1;
+    slideWrap.hidden = !cfg.slider;
+    slideLabel.hidden = !cfg.slider;
+    scatterOn = cfg.scatter;
+    if (cfg.slider) { elev.value = String(cfg.alpha); }
+    alphaTarget = cfg.alpha;
+    layout();
+  }
+  prevBtn.addEventListener('click', function () { setStep(step - 1); });
+  nextBtn.addEventListener('click', function () { setStep(step + 1); });
+  elev.addEventListener('input', function () { alphaTarget = parseFloat(elev.value) || 22; });
+
+  /* layout */
+  var zoom = 1;
+  function layout() {
+    var w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    var aspect = w / h;
+    var half = Math.tan(22.5 * Math.PI / 180);
+    var dist = Math.max(20, 20 / (2 * half * Math.min(aspect, 1.7))) / zoom;
+    camera.position.set(0, 0, dist);
+    camera.lookAt(0, 0, 0);
+    var visibleH = 2 * half * dist;
+    var sheetH = sheet.getBoundingClientRect().height;
+    root.position.y = (sheetH / h) * visibleH * 0.5 - 0.02 * visibleH;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', layout);
+
+  /* input */
+  var pointers = {}, pinchStart = 0, zoomStart = 1, lastInteract = 0;
+  var userY = -0.35, userX = 0.1;
+  function pDist() {
+    var ks = Object.keys(pointers);
+    var p1 = pointers[ks[0]], p2 = pointers[ks[1]];
+    return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+  }
+  canvas.addEventListener('pointerdown', function (e) {
+    pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+    if (Object.keys(pointers).length === 2) { pinchStart = pDist(); zoomStart = zoom; }
+    lastInteract = performance.now();
+  });
+  canvas.addEventListener('pointermove', function (e) {
+    var p = pointers[e.pointerId];
+    if (!p) return;
+    var dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    lastInteract = performance.now();
+    var n = Object.keys(pointers).length;
+    if (n === 1) {
+      userY = Math.max(-1.2, Math.min(1.2, userY + dx * 0.008));
+      userX = Math.max(-0.5, Math.min(0.6, userX + dy * 0.006));
+    } else if (n >= 2 && pinchStart > 0) {
+      zoom = Math.max(0.6, Math.min(2.2, zoomStart * pDist() / pinchStart));
+      layout();
+    }
+  });
+  function up(e) {
+    delete pointers[e.pointerId];
+    if (Object.keys(pointers).length < 2) pinchStart = 0;
+    lastInteract = performance.now();
+  }
+  canvas.addEventListener('pointerup', up);
+  canvas.addEventListener('pointercancel', up);
+  canvas.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    zoom = Math.max(0.6, Math.min(2.2, zoom * (e.deltaY < 0 ? 1.08 : 0.92)));
+    layout();
+  }, { passive: false });
+
+  /* labels */
+  var v3 = new THREE.Vector3();
+  function place(lbl, x, y) {
+    v3.set(x, y, 0);
+    world.localToWorld(v3);
+    v3.project(camera);
+    var px = (v3.x * 0.5 + 0.5) * window.innerWidth;
+    var py = (-v3.y * 0.5 + 0.5) * window.innerHeight;
+    var w = lbl.offsetWidth;
+    px = Math.max(6, Math.min(window.innerWidth - w - 6, px - w / 2));
+    lbl.style.transform = 'translate(' + px + 'px,' + py + 'px) translateY(-100%)';
+  }
+
+  function smooth(a, b, x) { var t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+  function css(c) { return 'rgb(' + Math.round(c[0] * 255) + ',' + Math.round(c[1] * 255) + ',' + Math.round(c[2] * 255) + ')'; }
+
+  var tmp = new THREE.Vector3();
+  var last = performance.now() / 1000;
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function frame(t) {
+    requestAnimationFrame(frame);
+    var now = t / 1000;
+    var dt = Math.min(0.05, Math.max(0.001, now - last));
+    last = now; time += dt;
+
+    alpha += (alphaTarget - alpha) * (1 - Math.exp(-4 * dt));
+    var a = alpha * Math.PI / 180;
+    s.set(Math.cos(a), Math.sin(a), 0);
+    Lpath = -Re * Math.sin(a) + Math.sqrt(Ra * Ra - Re * Re * Math.cos(a) * Math.cos(a));
+    sunPos.copy(s).multiplyScalar(Lpath + 3);
+    sun.position.copy(sunPos);
+    var Lrel = Lpath / H;
+
+    /* analytic colors */
+    var T = SIG.map(function (sg) { return scatterOn ? Math.exp(-sg * Lrel) : 1; });
+    var rgb = [T[0], T[1], 0.75 * T[2] + 0.25 * T[3]];
+    var mx = Math.max(rgb[0], rgb[1], rgb[2]);
+    sunRGB = scatterOn ? [rgb[0] / mx, Math.pow(rgb[1] / mx, 1.05), Math.pow(rgb[2] / mx, 1.1)] : [1, 1, 1];
+    var day = [0.36, 0.62, 1.0];
+    var dusk = [sunRGB[0] * 0.95, sunRGB[1] * 0.85, sunRGB[2] * 0.7];
+    var k = smooth(1.6, 3.2, Lrel);
+    var target = scatterOn ? [day[0] + (dusk[0] - day[0]) * k, day[1] + (dusk[1] - day[1]) * k, day[2] + (dusk[2] - day[2]) * k] : [0.02, 0.03, 0.08];
+    for (var q = 0; q < 3; q++) skyRGB[q] += (target[q] - skyRGB[q]) * (1 - Math.exp(-5 * dt));
+
+    swSun.style.background = css(sunRGB);
+    swSky.style.background = css(skyRGB);
+    bgColor.setRGB(0.05 + skyRGB[0] * 0.3, 0.07 + skyRGB[1] * 0.3, 0.16 + skyRGB[2] * 0.3);
+    atmo.material.color.setRGB(skyRGB[0], skyRGB[1], skyRGB[2]);
+    atmo.material.opacity = scatterOn ? 0.16 : 0.07;
+
+    for (var b = 0; b < 4; b++) {
+      barCur[b] += (T[b] - barCur[b]) * (1 - Math.exp(-6 * dt));
+      barEls[b].style.height = Math.max(3, barCur[b] * 100) + '%';
+    }
+
+    /* emit photons from the sun toward the observer */
+    emitAcc += 85 * dt;
+    while (emitAcc >= 1) {
+      emitAcc -= 1;
+      var r = Math.random(), ci = 0, acc = WEIGHT[0];
+      while (r > acc && ci < 3) { ci++; acc += WEIGHT[ci]; }
+      var off = (Math.random() - 0.5) * 0.5;
+      spawn(1,
+        sunPos.x - Math.sin(a) * off, sunPos.y + Math.cos(a) * off, (Math.random() - 0.5) * 0.5,
+        -s.x * SPEED, -s.y * SPEED, 0, ci, 0.9, 6);
+    }
+
+    /* update photons */
+    for (var i = 0; i < PN; i++) {
+      var st = pState[i];
+      if (!st) continue;
+      var i3 = i * 3;
+      if (st === 1) {
+        pPos[i3] += pVel[i3] * dt; pPos[i3 + 1] += pVel[i3 + 1] * dt; pPos[i3 + 2] += pVel[i3 + 2] * dt;
+        var dx = pPos[i3] - C.x, dy = pPos[i3 + 1] - C.y;
+        var rr = Math.sqrt(dx * dx + dy * dy);
+        if (pPos[i3] * s.x + pPos[i3 + 1] * s.y < 0.3) {
+          spawn(2, 0, 0.4, 0, 0, 0, 0, pCi[i], 1.3, 0.22);
+          kill(i); continue;
+        }
+        if (scatterOn && rr < Ra && rr > Re && Math.random() < SIG[pCi[i]] * SPEED * dt / H) {
+          var u = Math.random() * 2 - 1, ph = Math.random() * TAU, sq = Math.sqrt(1 - u * u), sp = 8 + Math.random() * 3;
+          spawn(2, pPos[i3], pPos[i3 + 1], pPos[i3 + 2], 0, 0, 0, pCi[i], 1.6, 0.16);
+          pState[i] = 2;
+          pVel[i3] = sq * Math.cos(ph) * sp; pVel[i3 + 1] = sq * Math.sin(ph) * sp; pVel[i3 + 2] = u * sp;
+          pLife[i] = 0.7 + Math.random() * 0.7; pMax[i] = pLife[i];
+        }
+        pCol[i3] = pBase[i3]; pCol[i3 + 1] = pBase[i3 + 1]; pCol[i3 + 2] = pBase[i3 + 2];
+      } else {
+        pPos[i3] += pVel[i3] * dt; pPos[i3 + 1] += pVel[i3 + 1] * dt; pPos[i3 + 2] += pVel[i3 + 2] * dt;
+        pLife[i] -= dt;
+        var ex = pPos[i3] - C.x, ey = pPos[i3 + 1] - C.y;
+        if (pLife[i] <= 0 || ex * ex + ey * ey < Re * Re) { kill(i); continue; }
+        var f = pLife[i] / pMax[i];
+        pCol[i3] = pBase[i3] * f; pCol[i3 + 1] = pBase[i3 + 1] * f; pCol[i3 + 2] = pBase[i3 + 2] * f;
+      }
+    }
+    pGeo.attributes.position.needsUpdate = true;
+    pGeo.attributes.color.needsUpdate = true;
+
+    var idle = performance.now() - lastInteract > 2500 && Object.keys(pointers).length === 0;
+    root.rotation.y = userY + (idle && !reduce ? Math.sin(time * 0.3) * 0.1 : 0);
+    root.rotation.x = userX;
+
+    scene.updateMatrixWorld(true);
+    camera.updateMatrixWorld(true);
+    place(labels[0], sunPos.x, sunPos.y + 1.6);
+    place(labels[1], 0, 2.0);
+    place(labels[2], -2.6, 4.6);
+
+    renderer.render(scene, camera);
+  }
+
+  setStep(0);
+  alpha = alphaTarget;
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
