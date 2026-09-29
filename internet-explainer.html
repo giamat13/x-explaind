@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>מה קורה כשפותחים אתר?</title>
+<style>
+  :root {
+    --bg: #070b22;
+    --panel: #111c44;
+    --ink: #eef2ff;
+    --muted: #9fb0e8;
+    --amber: #ffc44d;
+    --sky: #4dd2ff;
+    --mint: #6ef3c5;
+    --red: #ff6b5a;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+  #top {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 18px 0;
+    pointer-events: none;
+  }
+  #top h1 { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.01em; }
+  #top p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+
+  .lbl {
+    position: fixed; left: 0; top: 0; padding: 3px 10px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; background: rgba(7, 11, 34, .84);
+    pointer-events: none; white-space: nowrap; will-change: transform;
+  }
+  .lbl[hidden] { display: none; }
+  #l6 { color: var(--mint); font-variant-numeric: tabular-nums; }
+
+  #sheet {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: var(--panel);
+    border-radius: 22px 22px 0 0;
+    padding: 14px 18px calc(env(safe-area-inset-bottom, 0px) + 14px);
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, .4);
+  }
+  #dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 10px; }
+  #dots i { width: 22px; height: 6px; border-radius: 3px; background: #2b3a78; display: block; transition: background .2s, width .2s; }
+  #dots i.done { background: #4a5db0; }
+  #dots i.on { background: var(--amber); width: 34px; }
+
+  #mid { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+  #diagram { flex: none; width: 132px; }
+  #diagram svg { width: 100%; height: auto; display: block; background: rgba(255,255,255,.04); border-radius: 12px; }
+  #diagram text { font-family: inherit; }
+  #info { flex: 1; min-width: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+  #info .big { font-size: 24px; font-weight: 800; color: var(--ink); line-height: 1.15; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+  #info .lab { font-size: 12px; margin-top: 2px; }
+  #info .strip { display: flex; gap: 2px; margin: 3px 0 6px; direction: rtl; }
+  #info .strip i {
+    width: 11px; height: 17px; border-radius: 3px; background: #1d2b6a; font-style: normal;
+    font-size: 8px; line-height: 17px; text-align: center; color: #06153a; font-weight: 700;
+    border: 1px solid transparent; box-sizing: border-box;
+  }
+  #info .strip i.miss { border-color: var(--red); background: rgba(255, 107, 90, .25); color: var(--red); }
+  #info .strip i.got { border-color: rgba(255,255,255,.4); }
+  #info .spy {
+    margin-top: 4px; padding: 6px 8px; border-radius: 8px; background: #0a1230; border: 1px solid #2b3a78;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; min-height: 2.6em; word-break: break-all;
+    direction: ltr; text-align: left; color: var(--ink);
+  }
+  #info .spy.bad { color: var(--red); border-color: var(--red); }
+  #info .spy.ok { color: var(--mint); }
+  #info .bad { color: var(--red); }
+  #info .ok { color: var(--mint); }
+
+  #cap { margin: 0 0 10px; font-size: 16px; line-height: 1.55; min-height: 7.8em; }
+  #slidelabel { font-size: 14px; color: var(--muted); margin: 0 0 2px; }
+  #slidewrap { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; direction: ltr; font-size: 13px; color: var(--muted); }
+  #slidewrap[hidden], #slidelabel[hidden], #tglwrap[hidden] { display: none; }
+  #slider { flex: 1; accent-color: var(--amber); height: 32px; }
+  #tglwrap { margin: 0 0 12px; }
+  #tgl {
+    width: 100%; min-height: 48px; border-radius: 12px; border: 2px solid var(--red); background: rgba(255,107,90,.12);
+    color: var(--ink); font: inherit; font-size: 16px; font-weight: 700; cursor: pointer;
+  }
+  #tgl.on { border-color: var(--mint); background: rgba(110,243,197,.14); }
+
+  #btns { display: flex; gap: 10px; }
+  #btns button {
+    flex: 1; min-height: 54px; border: 0; border-radius: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #prev { background: #22307a; }
+  #next { background: var(--sky); }
+  #btns button:disabled { opacity: .3; cursor: default; }
+  #btns button:focus-visible, #slider:focus-visible, #tgl:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
+  #btns button:active:not(:disabled) { transform: scale(.97); }
+
+  @media (prefers-reduced-motion: reduce) { #dots i { transition: none; } }
+  @media (min-width: 700px) {
+    #sheet { left: 50%; right: auto; width: 520px; transform: translateX(-50%); }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="top">
+  <h1>מה קורה כשפותחים אתר?</h1>
+  <p>גררו כדי לסובב את התצוגה, צבטו כדי לעשות זום.</p>
+</div>
+
+<div class="lbl" id="l0">הטלפון שלכם</div>
+<div class="lbl" id="l1">נתב ביתי</div>
+<div class="lbl" id="l2">ספק האינטרנט</div>
+<div class="lbl" id="l3">שרת DNS</div>
+<div class="lbl" id="l4">שרת האתר</div>
+<div class="lbl" id="l5" hidden>מציץ ברשת</div>
+<div class="lbl" id="l6" hidden>93.184.216.34</div>
+
+<div id="sheet">
+  <div id="dots"></div>
+  <div id="mid">
+    <div id="diagram"></div>
+    <div id="info"></div>
+  </div>
+  <p id="cap"></p>
+  <div id="slidelabel" hidden>אובדן חבילות: גררו כדי להגדיל</div>
+  <div id="slidewrap" hidden>
+    <span>0%</span>
+    <input id="slider" type="range" min="0" max="60" step="1" value="30" aria-label="אחוז אובדן חבילות">
+    <span>60%</span>
+  </div>
+  <div id="tglwrap" hidden><button id="tgl" type="button">הצפנה כבויה</button></div>
+  <div id="btns">
+    <button id="prev" type="button" aria-label="הקודם">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#eef2ff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+    <button id="next" type="button" aria-label="הבא">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#06153a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  var canvas = document.getElementById('c');
+  var sheet = document.getElementById('sheet');
+  var dotsEl = document.getElementById('dots');
+  var diagramEl = document.getElementById('diagram');
+  var infoEl = document.getElementById('info');
+  var capEl = document.getElementById('cap');
+  var prevBtn = document.getElementById('prev');
+  var nextBtn = document.getElementById('next');
+  var slideWrap = document.getElementById('slidewrap');
+  var slideLabel = document.getElementById('slidelabel');
+  var slider = document.getElementById('slider');
+  var tglWrap = document.getElementById('tglwrap');
+  var tgl = document.getElementById('tgl');
+  var labelEls = [0, 1, 2, 3, 4, 5, 6].map(function (i) { return document.getElementById('l' + i); });
+
+  if (!window.THREE) { capEl.textContent = 'לא ניתן לטעון את מנוע התלת־ממד. בדקו את החיבור ורעננו את הדף.'; return; }
+  var renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true }); }
+  catch (e) { capEl.textContent = 'הדפדפן הזה לא תומך ב־WebGL.'; return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+  var V = THREE.Vector3, TAU = Math.PI * 2;
+  var scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x070b22);
+  var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 300);
+  var root = new THREE.Group();
+  var net = new THREE.Group();
+  root.add(net);
+  scene.add(root);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+  var dl = new THREE.DirectionalLight(0xffffff, 0.7);
+  dl.position.set(3, 8, 10);
+  scene.add(dl);
+
+  /* ---------- network graph ---------- */
+  var PH = 0, HOME = 1, ISP = 2, R1 = 3, R2 = 4, R3 = 5, R4 = 6, R5 = 7, WEB = 8, DNS = 9, EVE = 10;
+  var nodes = [
+    { p: new V(-8.4, 0, 0), kind: 'phone', route: false },
+    { p: new V(-6.2, 0, 0), kind: 'home', route: true },
+    { p: new V(-3.6, 0, 0), kind: 'isp', route: true },
+    { p: new V(-0.8, 2.6, 0.9), kind: 'r', route: true },
+    { p: new V(-0.8, 0, -0.7), kind: 'r', route: true },
+    { p: new V(-0.8, -2.6, 0.9), kind: 'r', route: true },
+    { p: new V(2.4, 1.6, -0.8), kind: 'r', route: true },
+    { p: new V(2.4, -1.6, 0.6), kind: 'r', route: true },
+    { p: new V(5.8, 0, 0), kind: 'web', route: false },
+    { p: new V(-3.6, 3.6, -0.6), kind: 'dns', route: false },
+    { p: new V(-3.6, -3.4, 0.8), kind: 'eve', route: false }
+  ];
+  nodes.forEach(function (n) { n.down = false; n.adj = []; });
+  var EDGES = [[0, 1], [1, 2], [2, 9], [2, 3], [2, 4], [2, 5], [3, 4], [4, 5], [3, 6], [4, 6], [4, 7], [5, 7], [6, 7], [6, 8], [7, 8]];
+  var edgeIdx = {};
+  var edgeLines = [], edgeGlow = [];
+  EDGES.forEach(function (e, i) {
+    var a = nodes[e[0]], b = nodes[e[1]], len = a.p.distanceTo(b.p);
+    a.adj.push({ to: e[1], len: len }); b.adj.push({ to: e[0], len: len });
+    edgeIdx[e[0] + '-' + e[1]] = i; edgeIdx[e[1] + '-' + e[0]] = i;
+    var line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a.p, b.p]),
+      new THREE.LineBasicMaterial({ color: 0x2b3a78, transparent: true, opacity: 0.95 }));
+    net.add(line); edgeLines.push(line); edgeGlow.push(0);
+  });
+  var eveLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([nodes[EVE].p, nodes[ISP].p]),
+    new THREE.LineDashedMaterial({ color: 0xff6b5a, dashSize: 0.3, gapSize: 0.25, transparent: true, opacity: 0.8 }));
+  eveLine.computeLineDistances();
+  net.add(eveLine);
+
+  var hitMeshes = [];
+  function makeNode(i) {
+    var n = nodes[i], g = new THREE.Group(), body;
+    var mat = new THREE.MeshLambertMaterial({ color: 0x4dd2ff });
+    if (n.kind === 'phone') {
+      body = new THREE.Mesh(new THREE.BoxGeometry(0.75, 1.3, 0.16), new THREE.MeshLambertMaterial({ color: 0xeef2ff }));
+      var scr = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.1, 0.18), new THREE.MeshBasicMaterial({ color: 0x1a2760 }));
+      g.add(scr);
+    } else if (n.kind === 'home') {
+      body = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.3, 0.7), new THREE.MeshLambertMaterial({ color: 0x7de8ff }));
+      var ant = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      ant.position.set(0.3, 0.4, 0); g.add(ant);
+    } else if (n.kind === 'isp') {
+      body = new THREE.Mesh(new THREE.OctahedronGeometry(0.62), new THREE.MeshLambertMaterial({ color: 0x4d8bff }));
+    } else if (n.kind === 'dns') {
+      body = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.8, 20), new THREE.MeshLambertMaterial({ color: 0xffc44d }));
+    } else if (n.kind === 'web') {
+      body = new THREE.Group();
+      for (var k = 0; k < 3; k++) {
+        var b = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.36, 0.8), new THREE.MeshLambertMaterial({ color: 0x6ef3c5 }));
+        b.position.y = (k - 1) * 0.45; body.add(b);
+      }
+    } else if (n.kind === 'eve') {
+      body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 20), new THREE.MeshBasicMaterial({ color: 0xff5a5a }));
+      var pupil = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      pupil.position.set(0, 0.2, 0.4); g.add(pupil);
+    } else {
+      body = new THREE.Mesh(new THREE.OctahedronGeometry(0.42), mat);
+    }
+    g.add(body);
+    g.position.copy(n.p);
+    net.add(g);
+    n.obj = g; n.body = body; n.mat = mat;
+    if (n.kind === 'r') {
+      var hit = new THREE.Mesh(new THREE.SphereGeometry(0.95, 10, 10), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+      hit.userData.node = i;
+      g.add(hit); hitMeshes.push(hit);
+    }
+  }
+  for (var ni = 0; ni < nodes.length; ni++) makeNode(ni);
+  function paintNode(i) {
+    var n = nodes[i];
+    if (n.kind !== 'r') return;
+    n.mat.color.setHex(n.down ? 0xff5a5a : 0x4dd2ff);
+    n.obj.scale.setScalar(n.down ? 0.8 : 1);
+  }
+
+  function findPath(src, dst, rand) {
+    var N = nodes.length, dist = [], prev = [], done = [], i;
+    for (i = 0; i < N; i++) { dist.push(1e9); prev.push(-1); done.push(false); }
+    dist[src] = 0;
+    for (var it = 0; it < N; it++) {
+      var u = -1, best = 1e9;
+      for (i = 0; i < N; i++) if (!done[i] && dist[i] < best) { best = dist[i]; u = i; }
+      if (u < 0) break;
+      done[u] = true;
+      if (u === dst) break;
+      nodes[u].adj.forEach(function (e) {
+        var v = e.to;
+        if (nodes[v].down) return;
+        if (v !== dst && !nodes[v].route) return;
+        var w = e.len * (rand ? 0.5 + Math.random() * 1.3 : 1);
+        if (dist[u] + w < dist[v]) { dist[v] = dist[u] + w; prev[v] = u; }
+      });
+    }
+    if (dist[dst] >= 1e9) return null;
+    var path = [];
+    for (var v = dst; v !== -1; v = prev[v]) path.unshift(v);
+    return path;
+  }
+
+  /* ---------- packets ---------- */
+  function circleTex() {
+    var cv = document.createElement('canvas');
+    cv.width = cv.height = 64;
+    var g = cv.getContext('2d');
+    var gr = g.createRadialGradient(32, 32, 0, 32, 32, 30);
+    gr.addColorStop(0, 'rgba(255,255,255,1)');
+    gr.addColorStop(0.6, 'rgba(255,255,255,.85)');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    return new THREE.CanvasTexture(cv);
+  }
+  var tex = circleTex();
+  var PN = 90;
+  var bPos = new Float32Array(PN * 3), bCol = new Float32Array(PN * 3);
+  var bGeo = new THREE.BufferGeometry();
+  bGeo.setAttribute('position', new THREE.BufferAttribute(bPos, 3));
+  bGeo.setAttribute('color', new THREE.BufferAttribute(bCol, 3));
+  var beads = new THREE.Points(bGeo, new THREE.PointsMaterial({
+    size: 0.62, vertexColors: true, map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+  }));
+  beads.frustumCulled = false;
+  net.add(beads);
+
+  var SPEED = 5.5;
+  var packets = [];
+  function newPacket(path, o) {
+    var p = { path: path, seg: 0, u: 0, speed: o.speed || SPEED, col: o.col, id: o.id || 0, kind: o.kind || 'x', lostHop: o.lostHop || -1, state: 0, t: 0, cb: o.cb, onLost: o.onLost };
+    packets.push(p);
+    return p;
+  }
+  function lose(p) {
+    if (p.state === 1) return;
+    p.state = 1; p.t = 0;
+    if (p.onLost) p.onLost(p);
+  }
+  function packetPos(p, out) {
+    var a = nodes[p.path[p.seg]].p, b = nodes[p.path[Math.min(p.seg + 1, p.path.length - 1)]].p;
+    return out.copy(a).lerp(b, p.u);
+  }
+  function updatePackets(dt) {
+    for (var i = packets.length - 1; i >= 0; i--) {
+      var p = packets[i];
+      if (p.state === 1) { p.t += dt; if (p.t > 0.6) packets.splice(i, 1); continue; }
+      var na = nodes[p.path[p.seg]], nb = nodes[p.path[p.seg + 1]];
+      var L = na.p.distanceTo(nb.p);
+      p.u += p.speed * dt / L;
+      if (p.u >= 1) {
+        var from = p.path[p.seg];
+        p.seg++; p.u = 0;
+        var to = p.path[p.seg];
+        var ei = edgeIdx[from + '-' + to];
+        if (ei !== undefined) edgeGlow[ei] = 1;
+        if (nodes[to].down) { lose(p); continue; }
+        if (p.seg === p.lostHop) { lose(p); continue; }
+        if (to === ISP && p.kind === 'data') spyUpdate(p);
+        if (p.seg >= p.path.length - 1) { packets.splice(i, 1); if (p.cb) p.cb(p); }
+      }
+    }
+  }
+
+  /* ---------- UI state ---------- */
+  var TEXTS = [
+    'כשכותבים כתובת של אתר, הטלפון עוד לא יודע איפה הוא נמצא. קודם הוא שואל שרת DNS, מעין ספר טלפונים של האינטרנט, ומקבל כתובת מספרית (IP). השאלה בצהוב, והתשובה בירוק.',
+    'עכשיו הטלפון מבקש את הדף. השרת שולח אותו חתוך לחבילות קטנות וממוספרות. כל חבילה נוסעת בדרך משלה דרך הנתבים, ולכן הן מגיעות בסדר שונה. בשורה התחתונה הן מסודרות מחדש.',
+    'כל נתב מחליט לאן להעביר כל חבילה. אם נתב מתקלקל, החבילות עוקפות אותו. הקישו על אחד הנתבים (הכדורים במרכז) כדי לנתק אותו ולראות איך הרשת מגיבה. נסו לנתק כמה שיותר.',
+    'לפעמים חבילה הולכת לאיבוד. הנמען שם לב שחסר מספר, מבקש אותו שוב, והשרת שולח מחדש. גררו את המחוון כדי להגדיל את האובדן, ותראו שהדף תמיד מגיע שלם, רק לוקח קצת יותר זמן.',
+    'החבילות עוברות דרך הרבה ידיים. בלי הצפנה, מי שמציץ ברשת יכול לקרוא אותן. עם HTTPS התוכן מוצפן ונראה לו כמו רעש. לחצו על הכפתור כדי להפעיל ולכבות את ההצפנה.'
+  ];
+  var FRAGS = ['שם משתמש: dana_92', 'סיסמה: 1234abcd', 'כרטיס: 4580 ••• 2291', 'הודעה: נתראה בשש', 'חיפוש: מתכון לשקשוקה', 'מיקום: תל אביב', 'קוד אימות: 482913', 'אימייל: dana@mail.com', 'תמונה: vacation.jpg', 'הזמנה: #55810', 'שיחה: היי, מה קורה?', 'כתובת: הרצל 12'];
+
+  var step = 0, time = 0, loss = 0.3, enc = false, zoom = 1, lastInteract = 0;
+  var userY = -0.3, userX = 0.32;
+  var spyTextEl = null;
+  var dns = { phase: 0, t: 0, showIp: false, waiting: false };
+  var pg = null;
+  var stream = { t: 0 };
+
+  for (var di = 0; di < TEXTS.length; di++) dotsEl.appendChild(document.createElement('i'));
+
+  function hue(id) { var c = new THREE.Color(); c.setHSL(((id - 1) * 30 % 360) / 360, 0.85, 0.62); return [c.r, c.g, c.b]; }
+  function cssHue(id) { return 'hsl(' + ((id - 1) * 30 % 360) + ',85%,62%)'; }
+
+  /* ---- DNS engine ---- */
+  function dnsStart() {
+    dns.phase = 1; dns.showIp = false; dns.waiting = true;
+    newPacket([PH, HOME, ISP, DNS], { col: [1, 0.77, 0.3], kind: 'dns', cb: function () {
+      dns.phase = 2; dns.waiting = true;
+      newPacket([DNS, ISP, HOME, PH], { col: [0.43, 0.95, 0.77], kind: 'dns', cb: function () { dns.phase = 3; dns.t = 0; dns.showIp = true; dns.waiting = false; } });
+    } });
+  }
+  function dnsUpdate(dt) {
+    if (dns.phase === 0) { dnsStart(); }
+    else if (dns.phase === 3) {
+      dns.t += dt;
+      if (dns.t > 2.0) { dns.phase = 4; dns.t = 0; dns.showIp = false; }
+    } else if (dns.phase === 4) {
+      dns.t += dt;
+      if (dns.t > 0.8) { dns.phase = 0; }
+    }
+  }
+
+  /* ---- page transfer engine (steps 2, 4, 5) ---- */
+  function newPage() {
+    pg = { state: 'send', timer: 0.32, queue: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], inflight: 0, recv: [], flag: [], arrivals: [], t: 0 };
+    for (var i = 0; i < 12; i++) { pg.recv.push(false); pg.flag.push(false); }
+    renderStrips();
+  }
+  function launchData(id) {
+    var path = findPath(WEB, PH, true);
+    if (!path) return;
+    var lossP = step === 3 ? loss : 0;
+    var lostHop = -1;
+    if (Math.random() < lossP && path.length >= 3) lostHop = 1 + Math.floor(Math.random() * (path.length - 2));
+    var col = enc ? [0.66, 0.55, 1] : hue(id);
+    pg.inflight++;
+    newPacket(path, {
+      col: col, id: id, kind: 'data', lostHop: lostHop, speed: SPEED * (0.65 + Math.random() * 0.8),
+      cb: function (p) { pg.inflight--; pg.recv[p.id - 1] = true; pg.flag[p.id - 1] = false; pg.arrivals.push(p.id); renderStrips(); },
+      onLost: function () { pg.inflight--; }
+    });
+  }
+  function pageUpdate(dt) {
+    if (!pg) newPage();
+    if (pg.state === 'send') {
+      pg.timer += dt;
+      while (pg.queue.length && pg.timer >= 0.32) { pg.timer -= 0.32; launchData(pg.queue.shift()); }
+      if (!pg.queue.length && pg.inflight === 0) {
+        var missing = [];
+        for (var i = 0; i < 12; i++) if (!pg.recv[i]) missing.push(i + 1);
+        if (missing.length) { pg.state = 'nack'; pg.t = 0; pg.missing = missing; missing.forEach(function (id) { pg.flag[id - 1] = true; }); renderStrips(); }
+        else { pg.state = 'done'; pg.t = 0; renderStrips(); }
+      }
+    } else if (pg.state === 'nack') {
+      pg.t += dt;
+      if (pg.t > 1.1) { pg.queue = pg.missing.slice(); pg.timer = 0.32; pg.state = 'send'; }
+    } else {
+      pg.t += dt;
+      if (pg.t > 2.4) newPage();
+    }
+  }
+  function renderStrips() {
+    var a = document.getElementById('s1'), b = document.getElementById('s2');
+    if (!a || !b || !pg) return;
+    var i, h1 = '', h2 = '';
+    for (i = 0; i < 12; i++) {
+      var id = pg.arrivals[i];
+      h1 += id ? '<i class="got" style="background:' + cssHue(id) + '">' + id + '</i>' : '<i></i>';
+      if (pg.flag[i]) h2 += '<i class="miss">' + (i + 1) + '</i>';
+      else if (pg.recv[i]) h2 += '<i class="got" style="background:' + cssHue(i + 1) + '">' + (i + 1) + '</i>';
+      else h2 += '<i></i>';
+    }
+    a.innerHTML = h1; b.innerHTML = h2;
+    var st = document.getElementById('pgs');
+    if (st) {
+      if (pg.state === 'done') { st.textContent = 'הדף הגיע שלם'; st.className = 'ok'; }
+      else if (pg.state === 'nack') { st.textContent = 'חסר: מבקשים שוב'; st.className = 'bad'; }
+      else { st.textContent = 'מקבלים חבילות'; st.className = ''; }
+    }
+  }
+
+  /* ---- stream engine (step 3) ---- */
+  function streamUpdate(dt) {
+    stream.t += dt;
+    if (stream.t >= 0.32) {
+      stream.t = 0;
+      var path = findPath(WEB, PH, true);
+      if (path) newPacket(path, { col: hue(1 + Math.floor(Math.random() * 12)), kind: 'stream', speed: SPEED * (0.7 + Math.random() * 0.7) });
+    }
+  }
+
+  /* ---- spy ---- */
+  function gib(n) {
+    var chars = '0123456789abcdef', s = '';
+    for (var i = 0; i < n; i++) { s += chars[Math.floor(Math.random() * 16)]; if (i % 4 === 3 && i < n - 1) s += ' '; }
+    return s;
+  }
+  function spyUpdate(p) {
+    if (step !== 4) return;
+    var el = document.getElementById('spy');
+    if (!el) return;
+    var f = FRAGS[(p.id - 1) % 12];
+    if (enc) { el.textContent = gib(24); el.className = 'spy ok'; el.style.direction = 'ltr'; }
+    else { el.textContent = f; el.className = 'spy bad'; el.style.direction = 'rtl'; el.style.textAlign = 'right'; }
+  }
+
+  /* ---- panel graphics ---- */
+  function tileIcon(missIdx) {
+    var s = '<rect x="30" y="10" width="68" height="46" rx="5" fill="rgba(255,255,255,.08)" stroke="#9fb0e8" stroke-width="1.4"/>';
+    for (var r = 0; r < 3; r++) for (var c = 0; c < 4; c++) {
+      var id = r * 4 + c + 1;
+      s += '<rect x="' + (33 + c * 16) + '" y="' + (13 + r * 14) + '" width="14" height="12" rx="2" fill="' + cssHue(id) + '" opacity="' + (id === missIdx ? 0.15 : 0.9) + '"/>';
+    }
+    s += '<path d="M64 60v10m-4-4l4 5 4-5" fill="none" stroke="#eef2ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    s += '<text x="64" y="81" text-anchor="middle" font-size="9" fill="#eef2ff">חבילות</text>';
+    return s;
+  }
+  var miniEdges = '';
+  function miniX(x) { return 10 + (x + 9) / 16.5 * 108; }
+  function miniY(y) { return 42 - y * 7.4; }
+  function miniSvg() {
+    var s = '';
+    EDGES.forEach(function (e) {
+      var a = nodes[e[0]].p, b = nodes[e[1]].p, dead = nodes[e[0]].down || nodes[e[1]].down;
+      s += '<line x1="' + miniX(a.x).toFixed(1) + '" y1="' + miniY(a.y).toFixed(1) + '" x2="' + miniX(b.x).toFixed(1) + '" y2="' + miniY(b.y).toFixed(1) + '" stroke="' + (dead ? '#5a2b3a' : '#4a5db0') + '" stroke-width="1.6"' + (dead ? ' stroke-dasharray="2 2"' : '') + '/>';
+    });
+    [PH, HOME, ISP, R1, R2, R3, R4, R5, WEB].forEach(function (i) {
+      var n = nodes[i], col = i === PH ? '#eef2ff' : (i === WEB ? '#6ef3c5' : (n.down ? '#ff5a5a' : '#4dd2ff'));
+      s += '<circle cx="' + miniX(n.p.x).toFixed(1) + '" cy="' + miniY(n.p.y).toFixed(1) + '" r="' + (n.kind === 'r' ? 4.5 : 3.6) + '" fill="' + col + '"/>';
+      if (n.down) s += '<path d="M' + (miniX(n.p.x) - 2.5).toFixed(1) + ' ' + (miniY(n.p.y) - 2.5).toFixed(1) + 'l5 5m0-5l-5 5" stroke="#111c44" stroke-width="1.6" stroke-linecap="round"/>';
+    });
+    return s;
+  }
+  var dnsPhaseEls = null;
+  function diagram() {
+    var s = '';
+    if (step === 0) {
+      s += '<g id="b1"><rect x="6" y="8" width="90" height="26" rx="8" fill="#ffc44d"/><text x="51" y="19" text-anchor="middle" font-size="8.5" font-weight="700" fill="#06153a">איפה נמצא</text><text x="51" y="29" text-anchor="middle" font-size="8.5" font-weight="700" fill="#06153a">example.com?</text></g>';
+      s += '<g id="b2"><rect x="32" y="46" width="90" height="26" rx="8" fill="#6ef3c5"/><text x="77" y="57" text-anchor="middle" font-size="8.5" font-weight="700" fill="#06153a">הכתובת היא</text><text x="77" y="67" text-anchor="middle" font-size="8.5" font-weight="700" fill="#06153a">93.184.216.34</text></g>';
+    } else if (step === 1) s += tileIcon(0);
+    else if (step === 2) s += '<g id="mini">' + miniSvg() + '</g>';
+    else if (step === 3) s += tileIcon(5);
+    else {
+      s += '<rect x="44" y="34" width="40" height="32" rx="6" fill="#6ef3c5"/><path d="M52 34v-8a12 12 0 0 1 24 0v8" fill="none" stroke="#eef2ff" stroke-width="4"/><circle cx="64" cy="49" r="4" fill="#111c44"/><rect x="62" y="50" width="4" height="9" fill="#111c44"/>';
+    }
+    diagramEl.innerHTML = '<svg viewBox="0 0 128 84" role="img" aria-label="שרטוט לשלב ' + (step + 1) + '">' + s + '</svg>';
+  }
+  function info() {
+    var h = '';
+    spyTextEl = null;
+    if (step === 0) h = '<div class="big" id="v"></div><div id="sub"></div>';
+    else if (step === 1 || step === 3) h = '<div class="lab">סדר ההגעה</div><div class="strip" id="s1"></div><div class="lab">אחרי סידור</div><div class="strip" id="s2"></div><div id="pgs"></div>';
+    else if (step === 2) h = '<div class="big" id="v"></div><div>נתבים פעילים</div><div id="sub"></div>';
+    else h = '<div class="lab">מה המציץ רואה</div><div class="spy" id="spy">…</div><div id="sub" style="margin-top:4px"></div>';
+    infoEl.innerHTML = h;
+    if (pg) renderStrips();
+    updateStep2Info();
+  }
+  function updateStep2Info() {
+    if (step !== 2) return;
+    var up = 0;
+    for (var i = R1; i <= R5; i++) if (!nodes[i].down) up++;
+    var v = document.getElementById('v'), sub = document.getElementById('sub');
+    if (v) v.textContent = up + ' מתוך 5';
+    var path = findPath(WEB, PH, false);
+    if (sub) {
+      if (path) { sub.textContent = 'האתר נגיש: ' + (path.length - 1) + ' קפיצות'; sub.className = 'ok'; }
+      else { sub.textContent = 'אין מסלול: האתר לא נגיש'; sub.className = 'bad'; }
+    }
+    var m = document.getElementById('mini');
+    if (m) m.innerHTML = miniSvg();
+  }
+
+  function setStep(n) {
+    step = Math.max(0, Math.min(TEXTS.length - 1, n));
+    capEl.textContent = TEXTS[step];
+    Array.prototype.forEach.call(dotsEl.children, function (d, i) { d.className = i === step ? 'on' : (i < step ? 'done' : ''); });
+    prevBtn.disabled = step === 0;
+    nextBtn.disabled = step === TEXTS.length - 1;
+    slideWrap.hidden = slideLabel.hidden = step !== 3;
+    tglWrap.hidden = step !== 4;
+    for (var i = R1; i <= R5; i++) { nodes[i].down = false; paintNode(i); }
+    packets.length = 0;
+    dns.phase = 0; dns.showIp = false; dns.waiting = false;
+    pg = null; stream.t = 0;
+    enc = false;
+    tgl.className = ''; tgl.textContent = 'הצפנה כבויה';
+    loss = step === 3 ? (parseFloat(slider.value) || 30) / 100 : 0;
+    eveLine.visible = nodes[EVE].obj.visible = step === 4;
+    labelEls[3].hidden = step !== 0;
+    labelEls[5].hidden = step !== 4;
+    diagram();
+    info();
+    if (step === 1 || step === 3 || step === 4) newPage();
+    layout();
+  }
+  prevBtn.addEventListener('click', function () { setStep(step - 1); });
+  nextBtn.addEventListener('click', function () { setStep(step + 1); });
+  slider.addEventListener('input', function () { loss = (parseFloat(slider.value) || 0) / 100; });
+  tgl.addEventListener('click', function () {
+    enc = !enc;
+    tgl.className = enc ? 'on' : '';
+    tgl.textContent = enc ? 'הצפנה פועלת (HTTPS)' : 'הצפנה כבויה';
+    var el = document.getElementById('spy');
+    if (el) { el.textContent = '…'; el.className = 'spy'; }
+  });
+
+  function layout() {
+    var w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', layout);
+
+  /* input, including tapping routers */
+  var pointers = {}, pinchStart = 0, zoomStart = 1, tapInfo = null;
+  var raycaster = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  function pDist() {
+    var ks = Object.keys(pointers);
+    var p1 = pointers[ks[0]], p2 = pointers[ks[1]];
+    return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+  }
+  canvas.addEventListener('pointerdown', function (e) {
+    pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+    var n = Object.keys(pointers).length;
+    if (n === 1) tapInfo = { t: performance.now(), moved: 0 };
+    else { tapInfo = null; pinchStart = pDist(); zoomStart = zoom; }
+    lastInteract = performance.now();
+  });
+  canvas.addEventListener('pointermove', function (e) {
+    var p = pointers[e.pointerId];
+    if (!p) return;
+    var dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    lastInteract = performance.now();
+    var n = Object.keys(pointers).length;
+    if (n === 1) {
+      if (tapInfo) tapInfo.moved += Math.abs(dx) + Math.abs(dy);
+      userY += dx * 0.008;
+      userX = Math.max(-0.5, Math.min(1.1, userX + dy * 0.006));
+    } else if (n >= 2 && pinchStart > 0) {
+      zoom = Math.max(0.6, Math.min(2.4, zoomStart * pDist() / pinchStart));
+    }
+  });
+  function up(e) {
+    if (pointers[e.pointerId]) {
+      if (tapInfo && Object.keys(pointers).length === 1 && tapInfo.moved < 8 && performance.now() - tapInfo.t < 450) tapAt(e.clientX, e.clientY);
+      delete pointers[e.pointerId];
+    }
+    if (Object.keys(pointers).length < 2) pinchStart = 0;
+    lastInteract = performance.now();
+  }
+  canvas.addEventListener('pointerup', up);
+  canvas.addEventListener('pointercancel', up);
+  canvas.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    zoom = Math.max(0.6, Math.min(2.4, zoom * (e.deltaY < 0 ? 1.08 : 0.92)));
+  }, { passive: false });
+
+  function tapAt(x, y) {
+    if (step !== 2) return;
+    ndc.set((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1);
+    raycaster.setFromCamera(ndc, camera);
+    var hit = raycaster.intersectObjects(hitMeshes, false)[0];
+    if (!hit) return;
+    var id = hit.object.userData.node;
+    nodes[id].down = !nodes[id].down;
+    paintNode(id);
+    if (nodes[id].down) {
+      packets.forEach(function (p) { if (p.state === 0 && p.path.indexOf(id, p.seg + 1) !== -1) lose(p); });
+    }
+    updateStep2Info();
+  }
+
+  /* labels */
+  var v3 = new V();
+  function place(lbl, wp, dy) {
+    if (lbl.hidden) return;
+    v3.copy(wp); v3.y += dy || 0;
+    net.localToWorld(v3);
+    v3.project(camera);
+    var pxx = (v3.x * 0.5 + 0.5) * window.innerWidth;
+    var pyy = (-v3.y * 0.5 + 0.5) * window.innerHeight;
+    var w = lbl.offsetWidth;
+    pxx = Math.max(6, Math.min(window.innerWidth - w - 6, pxx - w / 2));
+    lbl.style.transform = 'translate(' + pxx + 'px,' + pyy + 'px) translateY(-100%)';
+  }
+
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var last = performance.now() / 1000;
+  var tmp = new V(), tmp2 = new V();
+  var baseE = new THREE.Color(0x2b3a78), hotE = new THREE.Color(0x7de8ff);
+
+  function frame(t) {
+    requestAnimationFrame(frame);
+    var now = t / 1000;
+    var dt = Math.min(0.05, Math.max(0.001, now - last));
+    last = now; time += dt;
+
+    /* engines */
+    if (step === 0) dnsUpdate(dt);
+    else if (step === 2) { if (findPath(WEB, PH, false)) streamUpdate(dt); }
+    else pageUpdate(dt);
+    updatePackets(dt);
+
+    /* beads */
+    var bi = 0, p, i;
+    for (i = 0; i < PN * 3; i++) bCol[i] = 0;
+    for (i = 0; i < packets.length && bi < PN; i++) {
+      p = packets[i];
+      packetPos(p, tmp);
+      bPos[bi * 3] = tmp.x; bPos[bi * 3 + 1] = tmp.y; bPos[bi * 3 + 2] = tmp.z;
+      if (p.state === 1) {
+        var f = Math.max(0, 1 - p.t / 0.6);
+        bCol[bi * 3] = 1 * f; bCol[bi * 3 + 1] = 0.25 * f; bCol[bi * 3 + 2] = 0.2 * f;
+      } else { bCol[bi * 3] = p.col[0]; bCol[bi * 3 + 1] = p.col[1]; bCol[bi * 3 + 2] = p.col[2]; }
+      bi++;
+    }
+    bGeo.attributes.position.needsUpdate = true;
+    bGeo.attributes.color.needsUpdate = true;
+
+    /* edge glow */
+    for (i = 0; i < edgeLines.length; i++) {
+      edgeGlow[i] = Math.max(0, edgeGlow[i] - dt * 1.6);
+      var dead = nodes[EDGES[i][0]].down || nodes[EDGES[i][1]].down;
+      var m = edgeLines[i].material;
+      if (dead) m.color.setHex(0x5a2b3a);
+      else m.color.copy(baseE).lerp(hotE, edgeGlow[i]);
+    }
+
+    /* node bobbing for downed routers */
+    for (i = R1; i <= R5; i++) nodes[i].obj.rotation.y += dt * (nodes[i].down ? 0 : 0.6);
+    nodes[PH].obj.rotation.y = Math.sin(time * 0.6) * 0.3;
+    nodes[EVE].obj.rotation.y = Math.sin(time * 1.4) * 0.4;
+
+    /* camera */
+    var w = window.innerWidth, h = window.innerHeight, aspect = w / h;
+    var portrait = aspect < 1.05;
+    net.rotation.z = portrait ? Math.PI / 2 : 0;
+    var half = Math.tan(22.5 * Math.PI / 180);
+    var dist = (portrait ? 36 : Math.max(20, 21 / (2 * half * Math.min(aspect, 1.8)))) / zoom;
+    camera.position.set(0, 0, dist);
+    camera.lookAt(0, 0, 0);
+    var sheetH = sheet.getBoundingClientRect().height;
+    root.position.y = (sheetH / h) * (2 * half * dist) * 0.5 - 0.02 * (2 * half * dist);
+    var idle = performance.now() - lastInteract > 2500 && Object.keys(pointers).length === 0;
+    root.rotation.y = userY + (idle && !reduce ? Math.sin(time * 0.3) * 0.1 : 0);
+    root.rotation.x = userX;
+
+    /* panel bits */
+    if (step === 0) {
+      var b1 = document.getElementById('b1'), b2 = document.getElementById('b2');
+      if (b1) b1.setAttribute('opacity', (dns.phase === 1 || dns.phase === 0) ? 1 : 0.35);
+      if (b2) b2.setAttribute('opacity', (dns.phase === 2 || dns.phase === 3) ? 1 : 0.25);
+      var v = document.getElementById('v'), sub = document.getElementById('sub');
+      var msgs = ['שולחים שאלה…', 'שולחים שאלה…', 'מחכים לתשובה…', 'קיבלנו כתובת', ''];
+      if (v) v.textContent = dns.phase === 3 ? '93.184.216.34' : (dns.phase === 2 ? 'התשובה בדרך' : 'השאלה בדרך');
+      if (sub) sub.textContent = dns.phase === 3 ? 'עכשיו הטלפון יודע לאן לפנות' : 'הטלפון שואל: איפה example.com?';
+    }
+    labelEls[6].hidden = !(step === 0 && dns.showIp);
+
+    scene.updateMatrixWorld(true);
+    camera.updateMatrixWorld(true);
+    place(labelEls[0], nodes[PH].p, 1.2);
+    place(labelEls[1], nodes[HOME].p, 0.9);
+    place(labelEls[2], nodes[ISP].p, 1.0);
+    place(labelEls[3], nodes[DNS].p, 0.9);
+    place(labelEls[4], nodes[WEB].p, 1.4);
+    place(labelEls[5], nodes[EVE].p, 0.9);
+    place(labelEls[6], nodes[PH].p, 2.2);
+
+    renderer.render(scene, camera);
+  }
+
+  setStep(0);
+  layout();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
