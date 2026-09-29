@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>למה יש עונות בשנה?</title>
+<style>
+  :root {
+    --bg: #070b22;
+    --panel: #111c44;
+    --ink: #eef2ff;
+    --muted: #9fb0e8;
+    --amber: #ffc44d;
+    --sky: #4dd2ff;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+  #top {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 18px 0;
+    pointer-events: none;
+  }
+  #top h1 { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -0.01em; }
+  #top p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+
+  .lbl {
+    position: fixed; left: 0; top: 0; padding: 3px 10px; border-radius: 999px;
+    font-size: 13px; font-weight: 600; background: rgba(7, 11, 34, .82);
+    pointer-events: none; white-space: nowrap; will-change: transform;
+  }
+  .lbl[hidden] { display: none; }
+
+  #sheet {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: var(--panel);
+    border-radius: 22px 22px 0 0;
+    padding: 14px 18px calc(env(safe-area-inset-bottom, 0px) + 14px);
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, .4);
+  }
+  #dots { display: flex; justify-content: center; gap: 8px; margin-bottom: 10px; }
+  #dots i { width: 22px; height: 6px; border-radius: 3px; background: #2b3a78; display: block; transition: background .2s, width .2s; }
+  #dots i.done { background: #4a5db0; }
+  #dots i.on { background: var(--amber); width: 34px; }
+
+  #mid { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+  #diagram { flex: none; width: 132px; }
+  #diagram svg { width: 100%; height: auto; display: block; background: rgba(255,255,255,.04); border-radius: 12px; }
+  #diagram text { font-family: inherit; }
+  #info { flex: 1; min-width: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+  #info .big { font-size: 24px; font-weight: 800; color: var(--ink); line-height: 1.15; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+  #info .row { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+  #info .chip { width: 12px; height: 12px; border-radius: 50%; flex: none; display: block; }
+
+  #cap { margin: 0 0 10px; font-size: 16px; line-height: 1.55; min-height: 7.8em; }
+  #slidelabel { font-size: 14px; font-weight: 600; color: var(--ink); margin: 0 0 2px; }
+  #slidewrap { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; direction: ltr; font-size: 13px; color: var(--muted); }
+  #slider { flex: 1; accent-color: var(--amber); height: 32px; }
+
+  #btns { display: flex; gap: 10px; }
+  #btns button {
+    flex: 1; min-height: 54px; border: 0; border-radius: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #prev { background: #22307a; }
+  #next { background: var(--sky); }
+  #btns button:disabled { opacity: .3; cursor: default; }
+  #btns button:focus-visible, #slider:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
+  #btns button:active:not(:disabled) { transform: scale(.97); }
+
+  @media (prefers-reduced-motion: reduce) { #dots i { transition: none; } }
+  @media (min-width: 700px) {
+    #sheet { left: 50%; right: auto; width: 520px; transform: translateX(-50%); }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="top">
+  <h1>למה יש עונות בשנה?</h1>
+  <p>גררו כדי לסובב את התצוגה, צבטו כדי לעשות זום.</p>
+</div>
+
+<div class="lbl" id="l0">השמש</div>
+<div class="lbl" id="l1" hidden>20 במרץ</div>
+<div class="lbl" id="l2" hidden>21 ביוני</div>
+<div class="lbl" id="l3" hidden>22 בספטמבר</div>
+<div class="lbl" id="l4" hidden>21 בדצמבר</div>
+<div class="lbl" id="l5" hidden>כדור הארץ</div>
+<div class="lbl" id="l6" hidden></div>
+<div class="lbl" id="l7" hidden>ישראל, 32° צפון</div>
+<div class="lbl" id="l8" hidden>קוטב צפון</div>
+
+<div id="sheet">
+  <div id="dots"></div>
+  <div id="mid">
+    <div id="diagram"></div>
+    <div id="info"></div>
+  </div>
+  <p id="cap"></p>
+  <div id="slidelabel"></div>
+  <div id="slidewrap">
+    <span>ינואר</span>
+    <input id="slider" type="range" min="0" max="364" step="0.5" value="172" aria-label="תאריך בשנה">
+    <span>דצמבר</span>
+  </div>
+  <div id="btns">
+    <button id="prev" type="button" aria-label="הקודם">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#eef2ff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+    <button id="next" type="button" aria-label="הבא">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#06153a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  var canvas = document.getElementById('c');
+  var sheet = document.getElementById('sheet');
+  var dotsEl = document.getElementById('dots');
+  var diagramEl = document.getElementById('diagram');
+  var infoEl = document.getElementById('info');
+  var capEl = document.getElementById('cap');
+  var prevBtn = document.getElementById('prev');
+  var nextBtn = document.getElementById('next');
+  var slider = document.getElementById('slider');
+  var slideLabel = document.getElementById('slidelabel');
+  var labelEls = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(function (i) { return document.getElementById('l' + i); });
+
+  if (!window.THREE) { capEl.textContent = 'לא ניתן לטעון את מנוע התלת־ממד. בדקו את החיבור ורעננו את הדף.'; return; }
+  var renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true }); }
+  catch (e) { capEl.textContent = 'הדפדפן הזה לא תומך ב־WebGL.'; return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+  var V = THREE.Vector3, TAU = Math.PI * 2, DEG = 180 / Math.PI;
+  var R_ORB = 12, R_E = 2, EPS = 23.44 / DEG, LAT = 32 / DEG;
+  var A = new V(Math.sin(EPS), Math.cos(EPS), 0);
+  var Q0 = new THREE.Quaternion().setFromUnitVectors(new V(0, 1, 0), A);
+  var Q0INV = Q0.clone().invert();
+
+  var scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x070b22);
+  var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 400);
+  var root = new THREE.Group();
+  var world = new THREE.Group();
+  root.add(world);
+  scene.add(root);
+
+  /* ---------- orbit math ---------- */
+  function alphaOf(d) { return TAU * (d - 172) / 365.25; }
+  function earthPos(d) { var a = alphaOf(d); return new V(-Math.cos(a), 0, Math.sin(a)).multiplyScalar(R_ORB); }
+  function decl(d) { return Math.asin(Math.sin(EPS) * Math.cos(alphaOf(d))); }
+  function distMkm(d) { return 149.6 * (1 - 0.0167 * Math.cos(TAU * (d - 3) / 365.25)); }
+  function noonElev(d) { return 90 - Math.abs(LAT - decl(d)) * DEG; }
+  function dayHours(d) {
+    var c = -Math.tan(LAT) * Math.tan(decl(d));
+    c = Math.max(-1, Math.min(1, c));
+    return Math.acos(c) * 24 / Math.PI;
+  }
+  function seasonOf(d) {
+    if (d >= 79 && d < 172) return { n: 'אביב', c: '#5dff7a' };
+    if (d >= 172 && d < 265) return { n: 'קיץ', c: '#ffb347' };
+    if (d >= 265 && d < 355) return { n: 'סתיו', c: '#c98a4b' };
+    return { n: 'חורף', c: '#7db8ff' };
+  }
+  var MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
+  var MLEN = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  function dateText(d) {
+    var dd = Math.floor(d), m = 0;
+    while (m < 11 && dd >= MLEN[m]) { dd -= MLEN[m]; m++; }
+    return (dd + 1) + ' ב' + MONTHS[m];
+  }
+
+  /* ---------- textures ---------- */
+  function circleTex() {
+    var cv = document.createElement('canvas');
+    cv.width = cv.height = 64;
+    var g = cv.getContext('2d');
+    var gr = g.createRadialGradient(32, 32, 0, 32, 32, 30);
+    gr.addColorStop(0, 'rgba(255,255,255,1)');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    return new THREE.CanvasTexture(cv);
+  }
+  var glowTex = circleTex();
+
+  function earthTexture() {
+    var W = 1024, H = 512, cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    var g = cv.getContext('2d');
+    function X(lon) { return ((lon - 35 + 540) % 360) / 360 * W; }
+    function Y(lat) { return (90 - lat) / 180 * H; }
+    var og = g.createLinearGradient(0, 0, 0, H);
+    og.addColorStop(0, '#1b4fa8'); og.addColorStop(0.5, '#2a72d6'); og.addColorStop(1, '#1b4fa8');
+    g.fillStyle = og; g.fillRect(0, 0, W, H);
+    var land = [
+      [[-17, 15], [-10, 30], [10, 37], [32, 31], [43, 12], [51, 11], [40, -12], [35, -25], [20, -35], [12, -17], [9, 4], [-8, 5]],
+      [[-10, 36], [-9, 43], [0, 50], [10, 55], [30, 70], [70, 73], [110, 77], [160, 68], [180, 66], [140, 45], [122, 30], [110, 20], [100, 10], [80, 8], [68, 24], [55, 25], [45, 15], [35, 32], [28, 41], [10, 44], [-5, 37]],
+      [[-168, 66], [-140, 70], [-95, 72], [-80, 73], [-60, 60], [-55, 48], [-70, 42], [-80, 25], [-97, 20], [-88, 14], [-80, 8], [-105, 20], [-120, 34], [-125, 49], [-150, 60]],
+      [[-80, 8], [-60, 10], [-50, 0], [-35, -7], [-42, -22], [-58, -38], [-68, -54], [-74, -45], [-72, -20], [-81, -5]],
+      [[114, -22], [130, -12], [142, -11], [153, -28], [146, -39], [130, -32], [115, -34]],
+      [[-55, 60], [-20, 70], [-25, 82], [-60, 82], [-70, 70]]
+    ];
+    g.fillStyle = '#4aa35f'; g.strokeStyle = '#2f7a44'; g.lineWidth = 1.5;
+    land.forEach(function (poly) {
+      [-W, 0, W].forEach(function (off) {
+        g.beginPath();
+        var prev = null;
+        poly.forEach(function (p, i) {
+          var x = X(p[0]) + off, y = Y(p[1]);
+          if (prev !== null && Math.abs(x - prev) > W / 2) x += (prev > x ? W : -W);
+          if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
+          prev = x;
+        });
+        g.closePath(); g.fill(); g.stroke();
+      });
+    });
+    g.fillStyle = '#eef5ff';
+    g.fillRect(0, 0, W, Y(66.5)); g.fillRect(0, Y(-66.5), W, H - Y(-66.5));
+    g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 1;
+    for (var lo = -180; lo < 180; lo += 30) { g.beginPath(); g.moveTo(X(lo), 0); g.lineTo(X(lo), H); g.stroke(); }
+    for (var la = -60; la <= 60; la += 30) { g.beginPath(); g.moveTo(0, Y(la)); g.lineTo(W, Y(la)); g.stroke(); }
+    g.lineWidth = 2; g.strokeStyle = 'rgba(255,255,255,.7)';
+    g.beginPath(); g.moveTo(0, Y(0)); g.lineTo(W, Y(0)); g.stroke();
+    g.setLineDash([10, 8]); g.strokeStyle = '#ffc44d'; g.lineWidth = 2;
+    [23.44, -23.44].forEach(function (l) { g.beginPath(); g.moveTo(0, Y(l)); g.lineTo(W, Y(l)); g.stroke(); });
+    g.strokeStyle = '#7de8ff';
+    [66.56, -66.56].forEach(function (l) { g.beginPath(); g.moveTo(0, Y(l)); g.lineTo(W, Y(l)); g.stroke(); });
+    var t = new THREE.CanvasTexture(cv);
+    t.anisotropy = 4;
+    return t;
+  }
+  var earthTex = earthTexture();
+  var earthGeo = new THREE.SphereGeometry(R_E, 48, 32);
+  var earthMat = new THREE.MeshLambertMaterial({ map: earthTex });
+
+  function makeEarth() {
+    var pivot = new THREE.Group(), tilt = new THREE.Group(), spin = new THREE.Group();
+    tilt.quaternion.copy(Q0);
+    spin.add(new THREE.Mesh(earthGeo, earthMat));
+    tilt.add(spin); pivot.add(tilt);
+    var axis = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new V(0, -R_E * 1.9, 0), new V(0, R_E * 1.9, 0)]),
+      new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 })
+    );
+    var tip = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 12), new THREE.MeshBasicMaterial({ color: 0xff5a5a }));
+    tip.position.set(0, R_E * 1.9, 0);
+    tilt.add(axis, tip);
+    return { pivot: pivot, tilt: tilt, spin: spin, tip: tip };
+  }
+
+  /* sun and lights */
+  var sun = new THREE.Group();
+  sun.add(new THREE.Mesh(new THREE.SphereGeometry(2.6, 28, 28), new THREE.MeshBasicMaterial({ color: 0xfff1b8 })));
+  sun.add(new THREE.Mesh(new THREE.SphereGeometry(4.6, 24, 24), new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false })));
+  world.add(sun);
+  var sunLight = new THREE.PointLight(0xffffff, 1.5, 0, 0);
+  world.add(sunLight);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.16));
+
+  /* orbit ring coloured by season */
+  (function () {
+    var N = 180, pos = [], col = [];
+    for (var k = 0; k < N; k++) {
+      var d1 = k / N * 365.25, d2 = (k + 1) / N * 365.25;
+      var p1 = earthPos(d1), p2 = earthPos(d2);
+      var c = new THREE.Color(seasonOf(((d1 % 365.25) + 365.25) % 365.25).c);
+      pos.push(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z);
+      col.push(c.r, c.g, c.b, c.r, c.g, c.b);
+    }
+    var g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    var l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.8 }));
+    l.frustumCulled = false;
+    world.add(l);
+  })();
+
+  /* main earth */
+  var E = makeEarth();
+  world.add(E.pivot);
+  var LON_N = 128, latPts = new Float32Array(LON_N * 3), latCols = new Float32Array(LON_N * 3);
+  var latGeo = new THREE.BufferGeometry();
+  latGeo.setAttribute('position', new THREE.BufferAttribute(latPts, 3));
+  latGeo.setAttribute('color', new THREE.BufferAttribute(latCols, 3));
+  for (var li = 0; li < LON_N; li++) {
+    var lam = li / LON_N * TAU;
+    latPts[li * 3] = R_E * 1.012 * Math.cos(LAT) * Math.cos(lam);
+    latPts[li * 3 + 1] = R_E * 1.012 * Math.sin(LAT);
+    latPts[li * 3 + 2] = -R_E * 1.012 * Math.cos(LAT) * Math.sin(lam);
+  }
+  var latLine = new THREE.LineLoop(latGeo, new THREE.LineBasicMaterial({ vertexColors: true }));
+  E.spin.add(latLine);
+  var marker = new THREE.Group();
+  marker.add(new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), new THREE.MeshBasicMaterial({ color: 0xff5a5a })));
+  marker.add(new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 12), new THREE.MeshBasicMaterial({ color: 0xff5a5a, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false })));
+  marker.position.set(R_E * 1.02 * Math.cos(LAT), R_E * 1.02 * Math.sin(LAT), 0);
+  E.spin.add(marker);
+
+  /* ghost earths at equinoxes and solstices */
+  var GH_DAYS = [79, 172, 265, 355], ghosts = [];
+  GH_DAYS.forEach(function (d) {
+    var g = makeEarth();
+    g.pivot.position.copy(earthPos(d));
+    var s = earthPos(d).negate().normalize().applyQuaternion(Q0INV);
+    g.spin.rotation.y = Math.atan2(-s.z, s.x);
+    world.add(g.pivot);
+    ghosts.push(g);
+  });
+
+  /* distance line */
+  var distLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new V(), new V(1, 0, 0)]),
+    new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 0.5, gapSize: 0.4, transparent: true, opacity: 0.6 }));
+  distLine.frustumCulled = false;
+  world.add(distLine);
+
+  /* beam of sunlight (step 3) */
+  var beamLines = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.85 }));
+  beamLines.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(8 * 3), 3));
+  beamLines.frustumCulled = false;
+  var startLoop = new THREE.LineLoop(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.9 }));
+  startLoop.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(4 * 3), 3));
+  startLoop.frustumCulled = false;
+  var footGeo = new THREE.BufferGeometry();
+  footGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(4 * 3), 3));
+  footGeo.setIndex([0, 1, 2, 0, 2, 3]);
+  var foot = new THREE.Mesh(footGeo, new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0.6, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+  foot.frustumCulled = false;
+  var beam = new THREE.Group();
+  beam.add(beamLines, startLoop, foot);
+  world.add(beam);
+
+  /* ---------- state ---------- */
+  var TEXTS = [
+    'הרבה חושבים שקיץ הוא כשכדור הארץ קרוב לשמש. אבל בינואר הוא דווקא הכי קרוב, ובחצי הכדור הצפוני יש חורף. ביולי הוא הכי רחוק, ויש קיץ. הסיבה לעונות היא אחרת. גררו את המחוון ותראו.',
+    'הסיבה האמיתית: ציר הסיבוב של כדור הארץ נוטה ב־23.4°, ותמיד מצביע לאותו כיוון בחלל. במהלך השנה הקוטב הצפוני נוטה לעבר השמש או הרחק ממנה. הקו הלבן הוא הציר, והנקודה האדומה היא הקוטב הצפוני.',
+    'כשהקוטב הצפוני נוטה לעבר השמש, האור פוגע בנו בזווית גבוהה והאנרגיה מתרכזת בשטח קטן. בחורף אותה קרן מתפזרת על שטח גדול יותר. זה ההבדל בין חם לקר. שנו את התאריך ותראו את שטח האור משתנה.',
+    'הטיה משפיעה גם על אורך היום. בקיץ המקום שלנו נמצא יותר זמן באור, והיום ארוך; בחורף ההפך. ליד הקו הצהוב מסומן קו הרוחב שלנו: החלק הצהוב שלו נמצא עכשיו באור.'
+  ];
+  var step = 0, time = 0, day = 172, auto = true, spinAng = 0;
+  var focus = 0, focusTarget = 0, dragY = 0, dragX = 0, lastInteract = 0, zoom = 1;
+  var lastLabel = '';
+
+  for (var di = 0; di < TEXTS.length; di++) dotsEl.appendChild(document.createElement('i'));
+
+  function px(d) { return 6 + d / 364 * 116; }
+  function chart(fn, ymin, ymax, color, title, ribbon) {
+    var pts = '', d, v;
+    for (d = 0; d <= 364; d += 4) {
+      v = fn(d);
+      pts += px(d).toFixed(1) + ',' + (68 - (v - ymin) / (ymax - ymin) * 46).toFixed(1) + ' ';
+    }
+    var s = '<line x1="6" y1="68" x2="122" y2="68" stroke="#9fb0e8" stroke-width="1"/>';
+    if (ribbon) {
+      var seg = [[0, 79, '#7db8ff'], [79, 172, '#5dff7a'], [172, 265, '#ffb347'], [265, 355, '#c98a4b'], [355, 364, '#7db8ff']];
+      seg.forEach(function (r) { s += '<rect x="' + px(r[0]).toFixed(1) + '" y="72" width="' + (px(r[1]) - px(r[0])).toFixed(1) + '" height="7" fill="' + r[2] + '" opacity=".85"/>'; });
+    }
+    s += '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="2.4" stroke-linejoin="round"/>';
+    s += '<circle id="dot" cx="0" cy="0" r="4.5" fill="#fff"/>';
+    s += '<text x="8" y="13" font-size="9" fill="#eef2ff">' + title + '</text>';
+    return s;
+  }
+  var chartFn = null, chartMin = 0, chartMax = 1;
+  function diagram() {
+    var s = '';
+    chartFn = null;
+    if (step === 0) { chartFn = distMkm; chartMin = 146; chartMax = 153; s = chart(distMkm, 146, 153, '#ffc44d', 'מרחק מהשמש', true); }
+    else if (step === 1) {
+      var cx = 66, cy = 42, rr = 30;
+      s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + rr + '" fill="none" stroke="#3d4f9a" stroke-width="1.5"/>';
+      s += '<circle cx="' + cx + '" cy="' + cy + '" r="6" fill="#ffd36b"/>';
+      var names = ['מרץ', 'יוני', 'ספטמבר', 'דצמבר'];
+      GH_DAYS.forEach(function (d, i) {
+        var p = earthPos(d), x = cx + p.x / R_ORB * rr, y = cy + p.z / R_ORB * rr;
+        s += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="4.5" fill="#2a72d6"/>';
+        s += '<line x1="' + x.toFixed(1) + '" y1="' + y.toFixed(1) + '" x2="' + (x + 9).toFixed(1) + '" y2="' + (y - 1).toFixed(1) + '" stroke="#ff5a5a" stroke-width="2" stroke-linecap="round"/>';
+        var tx = i === 0 ? x - 8 : (i === 1 ? x - 26 : (i === 2 ? x - 12 : x + 8));
+        var ty = i === 0 ? y - 7 : (i === 2 ? y + 13 : y + 3);
+        s += '<text x="' + tx.toFixed(1) + '" y="' + ty.toFixed(1) + '" font-size="8" fill="#eef2ff">' + names[i] + '</text>';
+      });
+      s += '<circle id="dot1" cx="0" cy="0" r="3.2" fill="#fff" stroke="#ffc44d" stroke-width="1.5"/>';
+    }
+    else if (step === 2) { chartFn = noonElev; chartMin = 50; chartMax = 90; s = chart(noonElev, 50, 90, '#7de8ff', 'גובה השמש בצהריים', false); }
+    else { chartFn = dayHours; chartMin = 8; chartMax = 16; s = chart(dayHours, 8, 16, '#ffc44d', 'אורך היום בשעות', false); }
+    diagramEl.innerHTML = '<svg viewBox="0 0 128 84" role="img" aria-label="שרטוט לשלב ' + (step + 1) + '">' + s + '</svg>';
+  }
+
+  function info() {
+    var h = '';
+    if (step === 0) h = '<div class="big" id="v"></div><div class="row"><span class="chip" id="chip"></span><span id="sub"></span></div>';
+    else if (step === 1) h = '<div class="big" id="v"></div><div id="sub"></div>';
+    else if (step === 2) h = '<div class="big" id="v"></div><div id="sub"></div>';
+    else h = '<div class="big" id="v"></div><div id="sub">אורך אור היום ב־32° צפון</div>';
+    infoEl.innerHTML = h;
+    lastLabel = '';
+  }
+
+  function setStep(n) {
+    step = Math.max(0, Math.min(TEXTS.length - 1, n));
+    capEl.textContent = TEXTS[step];
+    Array.prototype.forEach.call(dotsEl.children, function (d, i) { d.className = i === step ? 'on' : (i < step ? 'done' : ''); });
+    prevBtn.disabled = step === 0;
+    nextBtn.disabled = step === TEXTS.length - 1;
+    var nt = step >= 2 ? 1 : 0;
+    if (nt !== focusTarget) { dragY = 0; dragX = 0; }
+    focusTarget = nt;
+    ghosts.forEach(function (g) { g.pivot.visible = step === 1; });
+    beam.visible = step === 2;
+    latLine.visible = step === 3;
+    marker.visible = step >= 2;
+    distLine.visible = step === 0;
+    E.tip.visible = step >= 1;
+    diagram();
+    info();
+    layout();
+  }
+  prevBtn.addEventListener('click', function () { setStep(step - 1); });
+  nextBtn.addEventListener('click', function () { setStep(step + 1); });
+  slider.addEventListener('input', function () { auto = false; day = parseFloat(slider.value) || 0; });
+
+  /* layout */
+  function layout() {
+    var w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', layout);
+
+  function fitDist(f) {
+    var w = window.innerWidth, h = window.innerHeight, aspect = w / h;
+    var half = Math.tan(22.5 * Math.PI / 180), portrait = aspect < 1.05;
+    var far = portrait ? 76 : Math.max(44, 32 / (2 * half * Math.min(aspect, 1.8)));
+    var near = portrait ? 20 : 11;
+    return (far + (near - far) * f) / zoom;
+  }
+
+  /* input */
+  var pointers = {}, pinchStart = 0, zoomStart = 1;
+  function pDist() {
+    var ks = Object.keys(pointers);
+    var p1 = pointers[ks[0]], p2 = pointers[ks[1]];
+    return Math.hypot(p1.x - p2.x, p1.y - p2.y);
+  }
+  canvas.addEventListener('pointerdown', function (e) {
+    pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+    if (Object.keys(pointers).length === 2) { pinchStart = pDist(); zoomStart = zoom; }
+    lastInteract = performance.now();
+  });
+  canvas.addEventListener('pointermove', function (e) {
+    var p = pointers[e.pointerId];
+    if (!p) return;
+    var dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    lastInteract = performance.now();
+    var n = Object.keys(pointers).length;
+    if (n === 1) {
+      dragY += dx * 0.008;
+      dragX = Math.max(-0.9, Math.min(0.9, dragX + dy * 0.006));
+    } else if (n >= 2 && pinchStart > 0) {
+      zoom = Math.max(0.6, Math.min(2.4, zoomStart * pDist() / pinchStart));
+    }
+  });
+  function up(e) {
+    delete pointers[e.pointerId];
+    if (Object.keys(pointers).length < 2) pinchStart = 0;
+    lastInteract = performance.now();
+  }
+  canvas.addEventListener('pointerup', up);
+  canvas.addEventListener('pointercancel', up);
+  canvas.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    zoom = Math.max(0.6, Math.min(2.4, zoom * (e.deltaY < 0 ? 1.08 : 0.92)));
+  }, { passive: false });
+
+  /* labels */
+  var v3 = new V();
+  function placeWorld(lbl, p, dy) {
+    if (lbl.hidden || !p) return;
+    v3.copy(p); v3.y += dy || 0;
+    world.localToWorld(v3);
+    v3.project(camera);
+    var pxx = (v3.x * 0.5 + 0.5) * window.innerWidth;
+    var pyy = (-v3.y * 0.5 + 0.5) * window.innerHeight;
+    var w = lbl.offsetWidth;
+    pxx = Math.max(6, Math.min(window.innerWidth - w - 6, pxx - w / 2));
+    lbl.style.transform = 'translate(' + pxx + 'px,' + pyy + 'px) translateY(-100%)';
+  }
+
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var last = performance.now() / 1000;
+  var tmpA = new V(), tmpB = new V(), tmpC = new V();
+  var pW = new V(), nW = new V(), sDir = new V(), hDir = new V(), pDir = new V(), qDir = new V();
+
+  function setText(id, t) { var el = document.getElementById(id); if (el && el.textContent !== t) el.textContent = t; }
+
+  function frame(t) {
+    requestAnimationFrame(frame);
+    var now = t / 1000;
+    var dt = Math.min(0.05, Math.max(0.001, now - last));
+    last = now; time += dt;
+
+    if (auto) { day = (day + dt * 18) % 365; slider.value = String(day); }
+    var d = day;
+    var Epos = earthPos(d);
+    sDir.copy(Epos).negate().normalize();
+    E.pivot.position.copy(Epos);
+
+    /* spin: locked to local noon in step 3, free otherwise */
+    var sLocal = sDir.clone().applyQuaternion(Q0INV);
+    var noonA = Math.atan2(-sLocal.z, sLocal.x);
+    if (step === 2) spinAng = noonA; else spinAng += dt * (step === 3 ? 0.7 : 1.2);
+    E.spin.rotation.y = spinAng;
+
+    /* camera focus */
+    focus += (focusTarget - focus) * (1 - Math.exp(-4 * dt));
+    world.position.set(-Epos.x * focus, -Epos.y * focus, -Epos.z * focus);
+    var half = Math.tan(22.5 * Math.PI / 180);
+    var dist = fitDist(focus);
+    camera.position.set(0, 0, dist);
+    camera.lookAt(0, 0, 0);
+    var h = window.innerHeight, sheetH = sheet.getBoundingClientRect().height;
+    root.position.y = (sheetH / h) * (2 * half * dist) * 0.5 - 0.03 * (2 * half * dist);
+
+    var farY = 0.15, farX = 0.75;
+    var nearY = Math.atan2(sDir.z, sDir.x) + 0.7 - Math.PI;
+    nearY += TAU * Math.round((farY - nearY) / TAU);
+    var idle = performance.now() - lastInteract > 2500 && Object.keys(pointers).length === 0;
+    var sway = idle && !reduce ? Math.sin(time * 0.3) * 0.08 : 0;
+    root.rotation.y = farY + (nearY - farY) * focus + dragY + sway;
+    root.rotation.x = farX + (0.2 - farX) * focus + dragX;
+
+    /* distance line */
+    if (distLine.visible) {
+      var pa = distLine.geometry.attributes.position.array;
+      pa[3] = Epos.x; pa[4] = Epos.y; pa[5] = Epos.z;
+      distLine.geometry.attributes.position.needsUpdate = true;
+      distLine.computeLineDistances();
+    }
+
+    /* marker world position and beam */
+    tmpA.set(R_E * Math.cos(LAT), R_E * Math.sin(LAT), 0)
+      .applyAxisAngle(new V(0, 1, 0), spinAng).applyQuaternion(Q0);
+    pW.copy(Epos).add(tmpA);
+    nW.copy(tmpA).normalize();
+    var sinE = nW.dot(sDir);
+    if (beam.visible) {
+      if (sinE > 0.05) {
+        beam.visible = true;
+        hDir.copy(sDir).addScaledVector(nW, -sinE).normalize();
+        pDir.crossVectors(nW, hDir).normalize();
+        qDir.crossVectors(sDir, pDir).normalize();
+        var w = 1.3, L = 7, sp = startLoop.geometry.attributes.position.array, bp = beamLines.geometry.attributes.position.array;
+        var fp = footGeo.attributes.position.array;
+        var signs = [[1, 1], [-1, 1], [-1, -1], [1, -1]];
+        var c0 = pW.clone().addScaledVector(nW, 0.03);
+        for (var k = 0; k < 4; k++) {
+          tmpB.copy(c0).addScaledVector(sDir, L).addScaledVector(pDir, signs[k][0] * w / 2).addScaledVector(qDir, signs[k][1] * w / 2);
+          var tt = tmpC.copy(tmpB).sub(c0).dot(nW) / sinE;
+          tmpC.copy(tmpB).addScaledVector(sDir, -tt);
+          sp[k * 3] = tmpB.x; sp[k * 3 + 1] = tmpB.y; sp[k * 3 + 2] = tmpB.z;
+          bp[k * 6] = tmpB.x; bp[k * 6 + 1] = tmpB.y; bp[k * 6 + 2] = tmpB.z;
+          bp[k * 6 + 3] = tmpC.x; bp[k * 6 + 4] = tmpC.y; bp[k * 6 + 5] = tmpC.z;
+          fp[k * 3] = tmpC.x; fp[k * 3 + 1] = tmpC.y; fp[k * 3 + 2] = tmpC.z;
+        }
+        startLoop.geometry.attributes.position.needsUpdate = true;
+        beamLines.geometry.attributes.position.needsUpdate = true;
+        footGeo.attributes.position.needsUpdate = true;
+        beamLines.visible = startLoop.visible = foot.visible = true;
+      } else {
+        beamLines.visible = startLoop.visible = foot.visible = false;
+      }
+    }
+
+    /* latitude circle lit part (step 4) */
+    if (latLine.visible) {
+      var sx = sLocal.x * Math.cos(-spinAng) + sLocal.z * Math.sin(-spinAng);
+      var sz = -sLocal.x * Math.sin(-spinAng) + sLocal.z * Math.cos(-spinAng);
+      for (var i = 0; i < LON_N; i++) {
+        var dot = (latPts[i * 3] * sx + latPts[i * 3 + 1] * sLocal.y + latPts[i * 3 + 2] * sz) / (R_E * 1.012);
+        if (dot > 0) { latCols[i * 3] = 1; latCols[i * 3 + 1] = 0.85; latCols[i * 3 + 2] = 0.3; }
+        else { latCols[i * 3] = 0.25; latCols[i * 3 + 1] = 0.28; latCols[i * 3 + 2] = 0.5; }
+      }
+      latGeo.attributes.color.needsUpdate = true;
+    }
+
+    /* panel numbers, dot, slider label */
+    slideLabel.textContent = 'התאריך: ' + dateText(d);
+    var dotEl = document.getElementById('dot');
+    if (dotEl && chartFn) {
+      dotEl.setAttribute('cx', px(d).toFixed(1));
+      dotEl.setAttribute('cy', (68 - (chartFn(d) - chartMin) / (chartMax - chartMin) * 46).toFixed(1));
+    }
+    var d1 = document.getElementById('dot1');
+    if (d1) {
+      d1.setAttribute('cx', (66 + Epos.x / R_ORB * 30).toFixed(1));
+      d1.setAttribute('cy', (42 + Epos.z / R_ORB * 30).toFixed(1));
+    }
+    var sea = seasonOf(d);
+    var dl = decl(d) * DEG;
+    if (step === 0) {
+      setText('v', distMkm(d).toFixed(1) + ' מיליון ק״מ');
+      setText('sub', sea.n + ' בחצי הכדור הצפוני');
+      var chip = document.getElementById('chip'); if (chip) chip.style.background = sea.c;
+      labelEls[6].textContent = distMkm(d).toFixed(1) + ' מיליון ק״מ';
+    } else if (step === 1) {
+      setText('v', 'השמש מעל ' + Math.abs(dl).toFixed(0) + '° ' + (dl >= 0 ? 'צפון' : 'דרום'));
+      setText('sub', dl > 6 ? 'הקוטב הצפוני נוטה אל השמש' : (dl < -6 ? 'הקוטב הצפוני נוטה הרחק מהשמש' : 'הקוטב לא נוטה לאף צד'));
+    } else if (step === 2) {
+      var el = noonElev(d);
+      setText('v', 'גובה השמש ' + el.toFixed(0) + '°');
+      setText('sub', 'שטח האור: פי ' + (1 / Math.sin(el / DEG)).toFixed(2) + ' מהמינימום');
+    } else {
+      setText('v', dayHours(d).toFixed(1) + ' שעות');
+    }
+
+    /* labels visibility */
+    labelEls[0].hidden = step > 1;
+    for (var g = 0; g < 4; g++) labelEls[1 + g].hidden = step !== 1;
+    labelEls[5].hidden = step !== 0;
+    labelEls[6].hidden = step !== 0;
+    labelEls[7].hidden = step < 2;
+    labelEls[8].hidden = step < 1;
+
+    scene.updateMatrixWorld(true);
+    camera.updateMatrixWorld(true);
+    placeWorld(labelEls[0], tmpA.set(0, 3.6, 0), 0);
+    GH_DAYS.forEach(function (gd, i) { placeWorld(labelEls[1 + i], earthPos(gd), 3.4); });
+    placeWorld(labelEls[5], Epos, 3.2);
+    placeWorld(labelEls[6], Epos.clone().multiplyScalar(0.5), 0.8);
+    placeWorld(labelEls[7], pW, 1.0);
+    tmpB.set(0, R_E * 1.9, 0).applyQuaternion(Q0).add(Epos);
+    placeWorld(labelEls[8], tmpB, 0.5);
+
+    renderer.render(scene, camera);
+  }
+
+  setStep(0);
+  layout();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
