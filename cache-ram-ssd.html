@@ -1,0 +1,265 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>מטמון, RAM ו-SSD</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@700&family=Heebo:wght@400;500&display=swap">
+<style>
+:root {
+  --paper: #F4EFE6; --surface: #FBF8F2; --ink: #1E1A14; --muted: #6B6257; --rule: #D8CFBF;
+  --accent: #B5532A; --sage: #4F7A66;
+  --font-display: "Frank Ruhl Libre", serif; --font-body: "Heebo", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #16130F; --surface: #1E1A14; --ink: #EDE6DA; --muted: #A39A8C; --rule: #3A342B;
+    --accent: #E07A4F; --sage: #7FAE95; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #16130F; --surface: #1E1A14; --ink: #EDE6DA; --muted: #A39A8C; --rule: #3A342B;
+  --accent: #E07A4F; --sage: #7FAE95; color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  box-sizing: border-box; height: 100%; margin: 0; overflow: hidden;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px;
+  padding-block: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.app { height: 100%; max-width: 540px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+h1 { margin: 0; font-family: var(--font-display); font-size: 1.5rem; line-height: 1.2; }
+.stage {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+  border: 1px solid var(--rule); background: var(--surface); padding: 10px 12px;
+}
+.stage-head { display: flex; justify-content: space-between; align-items: baseline; flex: 0 0 auto; }
+.stage-head h2 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; }
+.count { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+#art { flex: 1 1 auto; min-height: 0; width: 100%; height: 100%; display: block; direction: ltr; }
+.caption { margin: 0; flex: 0 0 auto; min-height: 4.6em; font-size: 1rem; line-height: 1.55; text-align: center; }
+.dots { display: flex; gap: 7px; justify-content: center; flex: 0 0 auto; }
+.dots i { display: block; width: 8px; height: 8px; border-radius: 4px; background: var(--rule); }
+.dots i.on { width: 22px; background: var(--accent); }
+.nav { display: flex; gap: 10px; flex: 0 0 auto; }
+.nav button {
+  flex: 1; min-height: 50px; font: inherit; font-weight: 500; font-size: 1rem;
+  border: 1px solid var(--ink); background: var(--ink); color: var(--paper); cursor: pointer;
+}
+.nav button:disabled { opacity: 0.35; cursor: default; }
+.nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="app" dir="rtl" lang="he">
+  <h1>מטמון, RAM ו-SSD</h1>
+
+  <section class="stage">
+    <div class="stage-head">
+      <h2 id="stepTitle"></h2>
+      <span class="count" id="count"></span>
+    </div>
+    <svg id="art" viewBox="0 0 320 260" role="img" preserveAspectRatio="xMidYMid meet"></svg>
+  </section>
+
+  <p class="caption" id="caption" aria-live="polite"></p>
+  <div class="dots" id="dots" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <button id="prev" type="button">הקודם</button>
+    <button id="next" type="button">הבא</button>
+  </nav>
+</div>
+
+<script>
+(function () {
+  var STEPS = [
+    { title: 'הפירמידה', caption: 'ככל שהאחסון קרוב יותר למעבד, הוא קטן ומהיר יותר. ככל שהוא רחוק, הוא גדול ואיטי יותר.' },
+    { title: 'חיפוש', caption: 'המעבד מחפש קודם במטמון הקטן. אם לא מוצא, עובר לשכבה הבאה, עד שמגיע ל-RAM.' },
+    { title: 'העתקה', caption: 'הנתון שנמצא מועתק לכל השכבות המהירות, כדי שהגישה הבאה אליו תהיה מהירה.' },
+    { title: 'בלוק', caption: 'המטמון מביא בבת אחת בלוק של נתונים סמוכים, כי תוכניות בדרך כלל ניגשות לנתונים קרובים זה לזה.' },
+    { title: 'זמנים', caption: 'כל שכבה איטית בערך פי כמה מהקודמת. בין RAM ל-SSD ההפרש הוא בסדר גודל של אלף.' },
+    { title: 'סדר הגישה', caption: 'בגישה לפי הסדר, רוב הפעמים הנתון כבר במטמון. בגישה אקראית, המעבד מחכה הרבה יותר.' }
+  ];
+
+  var cur = 0;
+  var art = document.getElementById('art');
+  var dotsEl = document.getElementById('dots');
+  var prevBtn = document.getElementById('prev');
+  var nextBtn = document.getElementById('next');
+  for (var d = 0; d < STEPS.length; d++) dotsEl.appendChild(document.createElement('i'));
+
+  var DEFS = '<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">' +
+    '<path d="M0 0L10 5L0 10z" style="fill:var(--ink)"/></marker></defs>';
+
+  function T(x, y, size, weight, fill, str) {
+    return '<text x="' + x + '" y="' + y + '" text-anchor="middle" style="font-family:var(--font-body);font-size:' +
+      size + 'px;font-weight:' + weight + ';fill:' + fill + '">' + str + '</text>';
+  }
+  function TL(x, y, size, weight, fill, str) {
+    return '<text x="' + x + '" y="' + y + '" text-anchor="start" style="font-family:var(--font-body);font-size:' +
+      size + 'px;font-weight:' + weight + ';fill:' + fill + '">' + str + '</text>';
+  }
+
+  function box(x, y, w, h, label, kind) {
+    var st = kind === 'hot' ? 'fill:var(--accent);stroke:var(--accent)'
+           : kind === 'dim' ? 'fill:var(--surface);stroke:var(--muted)'
+           : 'fill:var(--surface);stroke:var(--ink)';
+    var fc = kind === 'hot' ? 'var(--paper)' : 'var(--ink)';
+    return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="5" style="' + st + ';stroke-width:1"/>' +
+      T(x + w / 2, y + h / 2 + 4.5, 13, 500, fc, label);
+  }
+
+  function arrow(x1, y1, x2, y2) {
+    return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 +
+      '" style="stroke:var(--ink);stroke-width:1.2" marker-end="url(#ar)"/>';
+  }
+
+  function path(d) {
+    return '<path d="' + d + '" style="fill:none;stroke:var(--accent);stroke-width:1.4" marker-end="url(#ar)"/>';
+  }
+
+  var LEVELS = [
+    { x: 18, name: 'L1' },
+    { x: 96, name: 'L2' },
+    { x: 174, name: 'L3' },
+    { x: 252, name: 'RAM' }
+  ];
+
+  function levelRow(hitIndex, under) {
+    var out = '';
+    LEVELS.forEach(function (lv, i) {
+      var isHit = i === hitIndex;
+      out += box(lv.x, 110, 64, 40, lv.name, isHit ? 'hot' : 'dim');
+      out += T(lv.x + 32, 168, 11, 500, under[i].fill, under[i].text);
+    });
+    return out;
+  }
+
+  function cpuBox() {
+    return box(40, 200, 240, 34, 'המעבד: מה יש בכתובת 42?', 'normal') + arrow(30, 200, 30, 153);
+  }
+
+  function pyramid() {
+    var rows = [
+      { label: 'רגיסטרים', w: 16, fill: 'var(--accent)' },
+      { label: 'מטמון', w: 40, fill: 'var(--accent)' },
+      { label: 'RAM', w: 80, fill: 'var(--ink)' },
+      { label: 'SSD', w: 130, fill: 'var(--muted)' },
+      { label: 'HDD', w: 180, fill: 'var(--muted)' }
+    ];
+    var out = '';
+    rows.forEach(function (r, i) {
+      var y = 40 + i * 40;
+      out += TL(10, y + 16, 12, 500, 'var(--ink)', r.label);
+      out += '<rect x="130" y="' + y + '" width="' + r.w + '" height="24" rx="3" style="fill:' + r.fill + '"/>';
+    });
+    out += TL(10, 240, 11, 400, 'var(--muted)', 'קטן ומהיר למעלה, גדול ואיטי למטה');
+    return out;
+  }
+
+  var BUILD = [
+    function () {
+      return pyramid();
+    },
+    function () {
+      var under = [
+        { text: 'לא', fill: 'var(--muted)' },
+        { text: 'לא', fill: 'var(--muted)' },
+        { text: 'לא', fill: 'var(--muted)' },
+        { text: 'נמצא', fill: 'var(--accent)' }
+      ];
+      var out = levelRow(3, under);
+      out += arrow(84, 130, 94, 130) + arrow(162, 130, 172, 130) + arrow(240, 130, 250, 130);
+      return out + cpuBox();
+    },
+    function () {
+      var under = [
+        { text: 'עכשיו כאן', fill: 'var(--accent)' },
+        { text: 'עכשיו כאן', fill: 'var(--accent)' },
+        { text: 'עכשיו כאן', fill: 'var(--accent)' },
+        { text: 'מקור', fill: 'var(--muted)' }
+      ];
+      var out = levelRow(3, under);
+      out += path('M270 110 V64 H50 V110');
+      out += path('M280 110 V76 H128 V110');
+      out += path('M270 110 V88 H206 V110');
+      out += T(160, 52, 11, 500, 'var(--muted)', 'העתקה למטמון');
+      return out + cpuBox();
+    },
+    function () {
+      var out = '';
+      for (var i = 0; i < 16; i++) {
+        var x = 8 + i * 19;
+        var inBlock = i >= 4 && i <= 11;
+        var fill = i === 7 ? 'var(--accent)' : inBlock ? 'var(--sage)' : 'var(--surface)';
+        out += '<rect x="' + x + '" y="120" width="17" height="36" rx="2" style="fill:' + fill + ';stroke:var(--rule);stroke-width:1"/>';
+      }
+      out += '<rect x="77" y="106" width="162" height="48" rx="6" style="fill:none;stroke:var(--sage);stroke-width:1.2;stroke-dasharray:4 3"/>';
+      out += T(158, 98, 12, 500, 'var(--sage)', 'בלוק אחד נטען בבת אחת');
+      out += arrow(149, 190, 149, 162);
+      out += T(149, 206, 12, 500, 'var(--accent)', 'הנתון שנדרש');
+      out += T(160, 232, 11, 400, 'var(--muted)', 'שאר הבלוק נשמר למקרה שיידרש');
+      return out;
+    },
+    function () {
+      var rows = [
+        { label: 'L1', w: 16, fill: 'var(--accent)', t: '~1 ns' },
+        { label: 'L2', w: 33, fill: 'var(--accent)', t: '~4 ns' },
+        { label: 'L3', w: 46, fill: 'var(--accent)', t: '~12 ns' },
+        { label: 'RAM', w: 69, fill: 'var(--ink)', t: '~80 ns' },
+        { label: 'SSD', w: 156, fill: 'var(--muted)', t: '~100 µs' },
+        { label: 'HDD', w: 212, fill: 'var(--muted)', t: '~10 ms' }
+      ];
+      var out = '';
+      rows.forEach(function (r, i) {
+        var y = 36 + i * 36;
+        out += TL(10, y + 15, 12, 500, 'var(--ink)', r.label);
+        out += '<rect x="54" y="' + y + '" width="' + r.w + '" height="22" rx="3" style="fill:' + r.fill + '"/>';
+        out += TL(54 + r.w + 8, y + 15, 11, 400, 'var(--ink)', r.t);
+      });
+      return out;
+    },
+    function () {
+      var hit = [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+      var rnd = [0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1];
+      var out = '';
+      function row(pattern, y) {
+        var s = '';
+        for (var i = 0; i < 12; i++) {
+          var x = 8 + i * 26;
+          s += '<rect x="' + x + '" y="' + y + '" width="22" height="30" rx="3" style="fill:' +
+            (pattern[i] ? 'var(--sage)' : 'var(--accent)') + '"/>';
+        }
+        return s;
+      }
+      out += TL(8, 52, 12, 500, 'var(--ink)', 'לפי הסדר');
+      out += row(hit, 60);
+      out += TL(8, 124, 12, 500, 'var(--ink)', 'אקראי');
+      out += row(rnd, 132);
+      out += '<rect x="8" y="190" width="12" height="12" rx="2" style="fill:var(--sage)"/>' + TL(26, 200, 11, 400, 'var(--muted)', 'פגיעה במטמון');
+      out += '<rect x="150" y="190" width="12" height="12" rx="2" style="fill:var(--accent)"/>' + TL(168, 200, 11, 400, 'var(--muted)', 'החטאה, מחכים ל-RAM');
+      out += T(160, 236, 12, 500, 'var(--ink)', 'לפי הסדר: 11 פגיעות. אקראי: 4.');
+      return out;
+    }
+  ];
+
+  function render() {
+    document.getElementById('count').textContent = (cur + 1) + ' / ' + STEPS.length;
+    document.getElementById('stepTitle').textContent = STEPS[cur].title;
+    document.getElementById('caption').textContent = STEPS[cur].caption;
+    art.setAttribute('aria-label', STEPS[cur].title);
+    art.innerHTML = '<title>' + STEPS[cur].title + '</title>' + DEFS + BUILD[cur]();
+    for (var k = 0; k < dotsEl.children.length; k++) dotsEl.children[k].className = k === cur ? 'on' : '';
+    prevBtn.disabled = cur === 0;
+    nextBtn.disabled = cur === STEPS.length - 1;
+  }
+
+  prevBtn.addEventListener('click', function () { if (cur > 0) { cur--; render(); } });
+  nextBtn.addEventListener('click', function () { if (cur < STEPS.length - 1) { cur++; render(); } });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft' && cur < STEPS.length - 1) { cur++; render(); }
+    if (e.key === 'ArrowRight' && cur > 0) { cur--; render(); }
+  });
+
+  render();
+})();
+</script>

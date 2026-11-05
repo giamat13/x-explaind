@@ -1,0 +1,209 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>איך מעבד מבצע פקודה</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@700&family=Heebo:wght@400;500&display=swap">
+<style>
+:root {
+  --paper: #F4EFE6; --surface: #FBF8F2; --ink: #1E1A14; --muted: #6B6257; --rule: #D8CFBF;
+  --accent: #B5532A; --sage: #4F7A66;
+  --font-display: "Frank Ruhl Libre", serif; --font-body: "Heebo", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #16130F; --surface: #1E1A14; --ink: #EDE6DA; --muted: #A39A8C; --rule: #3A342B;
+    --accent: #E07A4F; --sage: #7FAE95; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #16130F; --surface: #1E1A14; --ink: #EDE6DA; --muted: #A39A8C; --rule: #3A342B;
+  --accent: #E07A4F; --sage: #7FAE95; color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  box-sizing: border-box; height: 100%; margin: 0; overflow: hidden;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px;
+  padding-block: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.app { height: 100%; max-width: 540px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+h1 { margin: 0; font-family: var(--font-display); font-size: 1.5rem; line-height: 1.2; }
+.stage {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+  border: 1px solid var(--rule); background: var(--surface); padding: 10px 12px;
+}
+.stage-head { display: flex; justify-content: space-between; align-items: baseline; flex: 0 0 auto; }
+.stage-head h2 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; }
+.count { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+#art { flex: 1 1 auto; min-height: 0; width: 100%; height: 100%; display: block; }
+.caption { margin: 0; flex: 0 0 auto; min-height: 4.6em; font-size: 1rem; line-height: 1.55; text-align: center; }
+.dots { display: flex; gap: 7px; justify-content: center; flex: 0 0 auto; }
+.dots i { display: block; width: 8px; height: 8px; border-radius: 4px; background: var(--rule); }
+.dots i.on { width: 22px; background: var(--accent); }
+.nav { display: flex; gap: 10px; flex: 0 0 auto; }
+.nav button {
+  flex: 1; min-height: 50px; font: inherit; font-weight: 500; font-size: 1rem;
+  border: 1px solid var(--ink); background: var(--ink); color: var(--paper); cursor: pointer;
+}
+.nav button:disabled { opacity: 0.35; cursor: default; }
+.nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="app" dir="rtl" lang="he">
+  <h1>איך מעבד מבצע פקודה</h1>
+
+  <section class="stage">
+    <div class="stage-head">
+      <h2 id="stepTitle"></h2>
+      <span class="count" id="count"></span>
+    </div>
+    <svg id="art" viewBox="0 0 320 260" role="img" preserveAspectRatio="xMidYMid meet"></svg>
+  </section>
+
+  <p class="caption" id="caption" aria-live="polite"></p>
+  <div class="dots" id="dots" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <button id="prev" type="button">הקודם</button>
+    <button id="next" type="button">הבא</button>
+  </nav>
+</div>
+
+<script>
+(function () {
+  var STEPS = [
+    { title: 'הפקודה בזיכרון', caption: 'המעבד עובד על תוכנית שנמצאת בזיכרון. המונה מצביע על הפקודה הבאה שצריך לבצע.' },
+    { title: 'אחזור', caption: 'הפקודה מועתקת מהזיכרון לרגיסטר הפקודה, והמונה מתקדם לפקודה שאחריה.' },
+    { title: 'פענוח', caption: 'המפענח מזהה מה הפקודה רוצה לעשות, ואילו ערכים היא מחברת.' },
+    { title: 'ביצוע', caption: 'היחידה האריתמטית (ALU) מבצעת את החישוב: 3 + 5 = 8.' },
+    { title: 'כתיבה חזרה', caption: 'התוצאה נשמרת ברגיסטר, וכך הפקודה הבאה יכולה להשתמש בה מיד.' },
+    { title: 'צינור', caption: 'בצינור, כל שלב עובד על פקודה אחרת. אחרי המילוי, פקודה מסתיימת בכל מחזור, ולא אחת לארבעה.' }
+  ];
+
+  var cur = 0;
+  var art = document.getElementById('art');
+  var dotsEl = document.getElementById('dots');
+  var prevBtn = document.getElementById('prev');
+  var nextBtn = document.getElementById('next');
+  for (var d = 0; d < STEPS.length; d++) dotsEl.appendChild(document.createElement('i'));
+
+  var DEFS = '<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">' +
+    '<path d="M0 0L10 5L0 10z" style="fill:var(--ink)"/></marker></defs>';
+
+  function T(x, y, size, weight, fill, str) {
+    return '<text x="' + x + '" y="' + y + '" text-anchor="middle" style="font-family:var(--font-body);font-size:' +
+      size + 'px;font-weight:' + weight + ';fill:' + fill + '">' + str + '</text>';
+  }
+
+  function box(x, y, w, h, label, kind) {
+    var st = kind === 'hot' ? 'fill:var(--accent);stroke:var(--accent)'
+           : kind === 'dim' ? 'fill:var(--surface);stroke:var(--muted)'
+           : 'fill:var(--surface);stroke:var(--ink)';
+    var fc = kind === 'hot' ? 'var(--paper)' : 'var(--ink)';
+    return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="5" style="' + st + ';stroke-width:1"/>' +
+      T(x + w / 2, y + h / 2 + 4.5, 13, 500, fc, label);
+  }
+
+  function arrow(x1, y1, x2, y2) {
+    return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 +
+      '" style="stroke:var(--ink);stroke-width:1.2" marker-end="url(#ar)"/>';
+  }
+
+  function ram(y, h, labels) {
+    var out = '';
+    for (var i = 0; i < 8; i++) {
+      var x = 20 + i * 36;
+      var lab = labels[i];
+      out += '<rect x="' + x + '" y="' + y + '" width="30" height="' + h + '" rx="3" style="' +
+        (lab ? 'fill:var(--ink);stroke:var(--ink)' : 'fill:var(--surface);stroke:var(--rule)') + ';stroke-width:1"/>';
+      if (lab) out += T(x + 15, y + h / 2 + 3.5, 9, 500, 'var(--paper)', lab);
+    }
+    return out;
+  }
+
+  function frame() {
+    return '<rect x="20" y="100" width="280" height="140" rx="8" style="fill:none;stroke:var(--muted);stroke-width:1;stroke-dasharray:4 3"/>' +
+      T(160, 116, 11, 500, 'var(--muted)', 'המעבד');
+  }
+
+  var BUILD = [
+    function () {
+      return ram(100, 40, { 2: 'ADD', 3: 'SUB', 4: 'JMP' }) +
+        T(107, 78, 11, 500, 'var(--ink)', 'מונה') +
+        arrow(107, 82, 107, 98) +
+        T(160, 170, 11, 400, 'var(--muted)', 'הזיכרון: שורה של תאים עם הוראות');
+    },
+    function () {
+      return ram(30, 34, { 2: 'ADD' }) +
+        arrow(107, 66, 107, 122) +
+        frame() +
+        box(40, 126, 240, 34, 'רגיסטר פקודה: ADD A,B', 'hot') +
+        box(40, 184, 240, 34, 'מונה: הפקודה הבאה', 'dim');
+    },
+    function () {
+      return box(40, 30, 240, 34, 'ADD A,B') +
+        arrow(160, 64, 160, 100) +
+        box(100, 102, 120, 34, 'מפענח', 'dim') +
+        arrow(140, 136, 92, 170) +
+        arrow(180, 136, 228, 170) +
+        box(30, 172, 124, 40, 'פעולה: חיבור') +
+        box(166, 172, 124, 40, 'מקורות: A ו-B');
+    },
+    function () {
+      return box(40, 36, 90, 40, 'A = 3') +
+        box(190, 36, 90, 40, 'B = 5') +
+        arrow(85, 76, 125, 118) +
+        arrow(235, 76, 195, 118) +
+        box(90, 120, 140, 56, 'ALU: חיבור', 'hot') +
+        arrow(160, 176, 160, 204) +
+        box(115, 206, 90, 36, '8');
+    },
+    function () {
+      return box(130, 36, 60, 34, '8', 'hot') +
+        arrow(160, 70, 122, 146) +
+        box(20, 150, 60, 40, 'R0') +
+        box(90, 150, 60, 40, 'R1 = 8', 'hot') +
+        box(160, 150, 60, 40, 'R2') +
+        box(230, 150, 60, 40, 'R3') +
+        box(20, 212, 270, 30, 'לזיכרון, רק אם צריך', 'dim');
+    },
+    function () {
+      var COL = { F: 'var(--accent)', D: 'var(--sage)', E: 'var(--ink)', W: 'var(--muted)' };
+      var STG = ['F', 'D', 'E', 'W'];
+      var out = T(40, 48, 11, 400, 'var(--muted)', 'מחזור');
+      var c, r, s;
+      for (c = 0; c < 7; c++) out += T(96 + c * 30 + 13.5, 48, 11, 400, 'var(--muted)', String(c + 1));
+      for (r = 0; r < 4; r++) {
+        out += T(40, 60 + r * 44 + 21, 11, 500, 'var(--ink)', 'פקודה ' + (r + 1));
+        for (s = 0; s < 4; s++) {
+          c = r + s;
+          var x = 96 + c * 30, y = 60 + r * 44;
+          out += '<rect x="' + x + '" y="' + y + '" width="27" height="34" rx="3" style="fill:' + COL[STG[s]] + '"/>';
+          out += T(x + 13.5, y + 21, 12, 500, 'var(--paper)', STG[s]);
+        }
+      }
+      return out + T(160, 250, 11, 400, 'var(--muted)', 'F אחזור · D פענוח · E ביצוע · W כתיבה');
+    }
+  ];
+
+  function render() {
+    document.getElementById('count').textContent = (cur + 1) + ' / ' + STEPS.length;
+    document.getElementById('stepTitle').textContent = STEPS[cur].title;
+    document.getElementById('caption').textContent = STEPS[cur].caption;
+    art.setAttribute('aria-label', STEPS[cur].title);
+    art.innerHTML = '<title>' + STEPS[cur].title + '</title>' + DEFS + BUILD[cur]();
+    for (var k = 0; k < dotsEl.children.length; k++) dotsEl.children[k].className = k === cur ? 'on' : '';
+    prevBtn.disabled = cur === 0;
+    nextBtn.disabled = cur === STEPS.length - 1;
+  }
+
+  prevBtn.addEventListener('click', function () { if (cur > 0) { cur--; render(); } });
+  nextBtn.addEventListener('click', function () { if (cur < STEPS.length - 1) { cur++; render(); } });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft' && cur < STEPS.length - 1) { cur++; render(); }
+    if (e.key === 'ArrowRight' && cur > 0) { cur--; render(); }
+  });
+
+  render();
+})();
+</script>

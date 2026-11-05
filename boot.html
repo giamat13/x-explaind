@@ -1,0 +1,211 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>איך המחשב עולה</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@700&family=Heebo:wght@400;500&display=swap">
+<style>
+:root {
+  --paper: #F4EFE6; --surface: #FBF8F2; --ink: #1E1A14; --muted: #6B6257; --rule: #D8CFBF;
+  --accent: #B5532A; --sage: #4F7A66;
+  --font-display: "Frank Ruhl Libre", serif; --font-body: "Heebo", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #16130F; --surface: #1E1A14; --ink: #EDE6DA; --muted: #A39A8C; --rule: #3A342B;
+    --accent: #E07A4F; --sage: #7FAE95; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #16130F; --surface: #1E1A14; --ink: #EDE6DA; --muted: #A39A8C; --rule: #3A342B;
+  --accent: #E07A4F; --sage: #7FAE95; color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  box-sizing: border-box; height: 100%; margin: 0; overflow: hidden;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px;
+  padding-block: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.app { height: 100%; max-width: 540px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+h1 { margin: 0; font-family: var(--font-display); font-size: 1.5rem; line-height: 1.2; }
+.stage {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+  border: 1px solid var(--rule); background: var(--surface); padding: 10px 12px;
+}
+.stage-head { display: flex; justify-content: space-between; align-items: baseline; flex: 0 0 auto; }
+.stage-head h2 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; }
+.count { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+#art { flex: 1 1 auto; min-height: 0; width: 100%; height: 100%; display: block; direction: ltr; }
+.caption { margin: 0; flex: 0 0 auto; min-height: 4.6em; font-size: 1rem; line-height: 1.55; text-align: center; }
+.dots { display: flex; gap: 7px; justify-content: center; flex: 0 0 auto; }
+.dots i { display: block; width: 8px; height: 8px; border-radius: 4px; background: var(--rule); }
+.dots i.on { width: 22px; background: var(--accent); }
+.nav { display: flex; gap: 10px; flex: 0 0 auto; }
+.nav button {
+  flex: 1; min-height: 50px; font: inherit; font-weight: 500; font-size: 1rem;
+  border: 1px solid var(--ink); background: var(--ink); color: var(--paper); cursor: pointer;
+}
+.nav button:disabled { opacity: 0.35; cursor: default; }
+.nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="app" dir="rtl" lang="he">
+  <h1>איך המחשב עולה</h1>
+
+  <section class="stage">
+    <div class="stage-head">
+      <h2 id="stepTitle"></h2>
+      <span class="count" id="count"></span>
+    </div>
+    <svg id="art" viewBox="0 0 320 260" role="img" preserveAspectRatio="xMidYMid meet"></svg>
+  </section>
+
+  <p class="caption" id="caption" aria-live="polite"></p>
+  <div class="dots" id="dots" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <button id="prev" type="button">הקודם</button>
+    <button id="next" type="button">הבא</button>
+  </nav>
+</div>
+
+<script>
+(function () {
+  var STEPS = [
+    { title: 'חשמל', caption: 'לחיצה על הכפתור מפעילה את ספק הכוח. הוא בודק שהמתחים יציבים, ואז מודיע ללוח האם שאפשר להתחיל.' },
+    { title: 'קושחה', caption: 'הקושחה שמורה בשבב על לוח האם. המעבד מתחיל לרוץ ממנה, כי זו התוכנה הראשונה שהוא מוצא.' },
+    { title: 'בדיקת חומרה', caption: 'הבדיקה מוודאת שהרכיבים קיימים ותקינים. אם משהו חסר, המחשב משמיע צפצופים או מציג הודעה ועוצר.' },
+    { title: 'דיסק', caption: 'הקושחה מחפשת את מחיצת האתחול בדיסק, וטוענת לזיכרון את תוכנת האתחול, שמוצאת את מערכת ההפעלה.' },
+    { title: 'מערכת ההפעלה', caption: 'הליבה של מערכת ההפעלה עולה לזיכרון, טוענת מנהלי התקן, ומפעילה שירותי רקע.' },
+    { title: 'התחברות', caption: 'מסך ההתחברות מופיע כשמערכת ההפעלה מוכנה לקבל משתמש. עד אז המסך מציג רק הודעות אתחול.' }
+  ];
+  var PHASES = ['חשמל', 'קושחה', 'בדיקה', 'דיסק', 'מערכת', 'התחברות'];
+
+  var cur = 0;
+  var art = document.getElementById('art');
+  var dotsEl = document.getElementById('dots');
+  var prevBtn = document.getElementById('prev');
+  var nextBtn = document.getElementById('next');
+  for (var d = 0; d < STEPS.length; d++) dotsEl.appendChild(document.createElement('i'));
+
+  var DEFS = '<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">' +
+    '<path d="M0 0L10 5L0 10z" style="fill:var(--ink)"/></marker></defs>';
+
+  function T(x, y, size, weight, fill, str) {
+    return '<text x="' + x + '" y="' + y + '" text-anchor="middle" style="font-family:var(--font-body);font-size:' +
+      size + 'px;font-weight:' + weight + ';fill:' + fill + '">' + str + '</text>';
+  }
+
+  function box(x, y, w, h, label, kind) {
+    var st = kind === 'hot' ? 'fill:var(--accent);stroke:var(--accent)'
+           : kind === 'dim' ? 'fill:var(--surface);stroke:var(--muted)'
+           : 'fill:var(--surface);stroke:var(--ink)';
+    var fc = kind === 'hot' ? 'var(--paper)' : 'var(--ink)';
+    return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="5" style="' + st + ';stroke-width:1"/>' +
+      T(x + w / 2, y + h / 2 + 4.5, 12, 500, fc, label);
+  }
+
+  function arrow(x1, y1, x2, y2) {
+    return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 +
+      '" style="stroke:var(--ink);stroke-width:1.2" marker-end="url(#ar)"/>';
+  }
+
+  function phaseBar(active) {
+    var out = '';
+    for (var i = 0; i < PHASES.length; i++) {
+      var on = i === active;
+      var done = i < active;
+      var fill = on ? 'var(--accent)' : done ? 'var(--sage)' : 'var(--surface)';
+      var ink = on || done ? 'var(--paper)' : 'var(--muted)';
+      out += '<rect x="' + (5 + i * 52) + '" y="6" width="50" height="24" rx="4" style="fill:' + fill +
+        ';stroke:' + (on || done ? fill : 'var(--rule)') + ';stroke-width:1"/>';
+      out += T(5 + i * 52 + 25, 22, 10, 500, ink, PHASES[i]);
+    }
+    return out;
+  }
+
+  var BUILD = [
+    function () {
+      var out = '<circle cx="62" cy="130" r="24" style="fill:var(--accent)"/>' + T(62, 134, 12, 500, 'var(--paper)', 'הפעלה');
+      out += arrow(90, 130, 118, 130);
+      out += box(120, 98, 84, 64, 'ספק כוח', 'hot');
+      out += arrow(208, 130, 226, 130);
+      out += box(228, 84, 84, 92, 'לוח אם', 'normal');
+      out += T(164, 186, 11, 400, 'var(--muted)', 'בודק מתחים');
+      return out;
+    },
+    function () {
+      var out = '<rect x="30" y="54" width="260" height="170" rx="8" style="fill:none;stroke:var(--muted);stroke-width:1;stroke-dasharray:4 3"/>';
+      out += T(160, 74, 11, 500, 'var(--muted)', 'לוח האם');
+      out += box(36, 110, 90, 50, 'מעבד');
+      out += arrow(128, 135, 148, 135);
+      out += box(150, 110, 120, 50, 'קושחה', 'hot');
+      out += T(210, 182, 11, 400, 'var(--muted)', 'שמורה בשבב, לא בדיסק');
+      return out;
+    },
+    function () {
+      var out = T(160, 76, 12, 500, 'var(--ink)', 'בודק רכיבים אחד אחד');
+      var items = [['מעבד', 40, 92], ['זיכרון', 170, 92], ['כרטיס מסך', 40, 164], ['מקלדת', 170, 164]];
+      items.forEach(function (it) {
+        out += '<rect x="' + it[1] + '" y="' + it[2] + '" width="110" height="56" rx="5" style="fill:var(--surface);stroke:var(--ink);stroke-width:1"/>';
+        out += T(it[1] + 55, it[2] + 26, 12, 500, 'var(--ink)', it[0]);
+        out += T(it[1] + 55, it[2] + 44, 11, 500, 'var(--sage)', 'תקין');
+      });
+      return out;
+    },
+    function () {
+      var out = '<rect x="30" y="92" width="110" height="92" rx="8" style="fill:var(--surface);stroke:var(--ink)" stroke-width="1"/>';
+      out += T(85, 112, 12, 500, 'var(--ink)', 'דיסק');
+      out += box(44, 122, 82, 22, 'אתחול', 'hot');
+      out += box(44, 150, 82, 26, 'מערכת', 'dim');
+      out += arrow(142, 134, 196, 134);
+      out += '<rect x="200" y="92" width="90" height="92" rx="8" style="fill:var(--surface);stroke:var(--ink)" stroke-width="1"/>';
+      out += T(245, 112, 12, 500, 'var(--ink)', 'זיכרון');
+      out += box(212, 122, 66, 30, 'טוען', 'hot');
+      out += T(85, 206, 11, 400, 'var(--muted)', 'מחיצת האתחול');
+      return out;
+    },
+    function () {
+      var out = '<rect x="30" y="54" width="260" height="170" rx="8" style="fill:none;stroke:var(--muted);stroke-width:1;stroke-dasharray:4 3"/>';
+      out += T(160, 74, 11, 500, 'var(--muted)', 'זיכרון');
+      out += box(50, 84, 220, 52, 'ליבת מערכת ההפעלה', 'hot');
+      out += box(50, 146, 220, 34, 'מנהלי התקן', 'normal');
+      out += box(50, 190, 220, 26, 'שירותי רקע', 'dim');
+      return out;
+    },
+    function () {
+      var out = '<rect x="60" y="66" width="200" height="132" rx="6" style="fill:var(--surface);stroke:var(--ink)" stroke-width="1"/>';
+      out += '<circle cx="160" cy="104" r="14" style="fill:var(--accent)"/>';
+      out += '<rect x="110" y="130" width="100" height="20" rx="3" style="fill:var(--paper);stroke:var(--muted);stroke-width:1"/>';
+      out += T(160, 144, 11, 400, 'var(--muted)', 'שם משתמש');
+      out += '<rect x="130" y="162" width="60" height="22" rx="4" style="fill:var(--accent)"/>';
+      out += T(160, 177, 11, 500, 'var(--paper)', 'כניסה');
+      out += '<rect x="152" y="198" width="16" height="10" style="fill:var(--muted)"/>';
+      out += '<rect x="126" y="208" width="68" height="6" rx="3" style="fill:var(--muted)"/>';
+      out += T(160, 234, 11, 400, 'var(--muted)', 'מסך ההתחברות מוכן');
+      return out;
+    }
+  ];
+
+  function render() {
+    document.getElementById('count').textContent = (cur + 1) + ' / ' + STEPS.length;
+    document.getElementById('stepTitle').textContent = STEPS[cur].title;
+    document.getElementById('caption').textContent = STEPS[cur].caption;
+    art.setAttribute('aria-label', STEPS[cur].title);
+    art.innerHTML = '<title>' + STEPS[cur].title + '</title>' + DEFS + phaseBar(cur) +
+      '<g transform="translate(0,20)">' + BUILD[cur]() + '</g>';
+    for (var k = 0; k < dotsEl.children.length; k++) dotsEl.children[k].className = k === cur ? 'on' : '';
+    prevBtn.disabled = cur === 0;
+    nextBtn.disabled = cur === STEPS.length - 1;
+  }
+
+  prevBtn.addEventListener('click', function () { if (cur > 0) { cur--; render(); } });
+  nextBtn.addEventListener('click', function () { if (cur < STEPS.length - 1) { cur++; render(); } });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft' && cur < STEPS.length - 1) { cur++; render(); }
+    if (e.key === 'ArrowRight' && cur > 0) { cur--; render(); }
+  });
+
+  render();
+})();
+</script>

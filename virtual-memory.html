@@ -1,0 +1,241 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>זיכרון וירטואלי</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@700&family=Heebo:wght@400;500&display=swap">
+<style>
+:root {
+  --paper: #F4EFE6; --surface: #FBF8F2; --ink: #1E1A14; --muted: #6B6257; --rule: #D8CFBF;
+  --accent: #B5532A; --sage: #4F7A66;
+  --font-display: "Frank Ruhl Libre", serif; --font-body: "Heebo", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #16130F; --surface: #1E1A14; --ink: #EDE6DA; --muted: #A39A8C; --rule: #3A342B;
+    --accent: #E07A4F; --sage: #7FAE95; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #16130F; --surface: #1E1A14; --ink: #EDE6DA; --muted: #A39A8C; --rule: #3A342B;
+  --accent: #E07A4F; --sage: #7FAE95; color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  box-sizing: border-box; height: 100%; margin: 0; overflow: hidden;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px;
+  padding-block: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.app { height: 100%; max-width: 540px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+h1 { margin: 0; font-family: var(--font-display); font-size: 1.5rem; line-height: 1.2; }
+.stage {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+  border: 1px solid var(--rule); background: var(--surface); padding: 10px 12px;
+}
+.stage-head { display: flex; justify-content: space-between; align-items: baseline; flex: 0 0 auto; }
+.stage-head h2 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; }
+.count { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+#art { flex: 1 1 auto; min-height: 0; width: 100%; height: 100%; display: block; direction: ltr; }
+.caption { margin: 0; flex: 0 0 auto; min-height: 4.6em; font-size: 1rem; line-height: 1.55; text-align: center; }
+.dots { display: flex; gap: 7px; justify-content: center; flex: 0 0 auto; }
+.dots i { display: block; width: 8px; height: 8px; border-radius: 4px; background: var(--rule); }
+.dots i.on { width: 22px; background: var(--accent); }
+.nav { display: flex; gap: 10px; flex: 0 0 auto; }
+.nav button {
+  flex: 1; min-height: 50px; font: inherit; font-weight: 500; font-size: 1rem;
+  border: 1px solid var(--ink); background: var(--ink); color: var(--paper); cursor: pointer;
+}
+.nav button:disabled { opacity: 0.35; cursor: default; }
+.nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="app" dir="rtl" lang="he">
+  <h1>זיכרון וירטואלי</h1>
+
+  <section class="stage">
+    <div class="stage-head">
+      <h2 id="stepTitle"></h2>
+      <span class="count" id="count"></span>
+    </div>
+    <svg id="art" viewBox="0 0 320 260" role="img" preserveAspectRatio="xMidYMid meet"></svg>
+  </section>
+
+  <p class="caption" id="caption" aria-live="polite"></p>
+  <div class="dots" id="dots" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <button id="prev" type="button">הקודם</button>
+    <button id="next" type="button">הבא</button>
+  </nav>
+</div>
+
+<script>
+(function () {
+  var STEPS = [
+    { title: 'זיכרון מלא', caption: 'ה-RAM מלא, ותוכנה חדשה צריכה עוד מקום. המערכת לא עוצרת: היא מוציאה זמנית חלק מהנתונים החוצה.' },
+    { title: 'דפים', caption: 'המערכת מחלקת את הזיכרון לדפים בגודל קבוע, לרוב 4KB. טבלה מתרגמת כל דף למסגרת פנויה ב-RAM, כך שהדפים לא חייבים להיות רצופים.' },
+    { title: 'העברה לדיסק', caption: 'המערכת בוחרת את הדף שנגעו בו הכי פחות לאחרונה, וכותבת אותו לקובץ ההחלפה בדיסק. המסגרת שהתפנתה נותנת מקום לתוכנה החדשה.' },
+    { title: 'שגיאת דף', caption: 'התוכנית מבקשת דף שאינו ב-RAM. החומרה מזהה את החסר ומעבירה את השליטה למערכת ההפעלה. זו שגיאת דף, וזו לא קריסה.' },
+    { title: 'טעינה חזרה', caption: 'מערכת ההפעלה טוענת את הדף מהדיסק למסגרת פנויה ומעדכנת את הטבלה. התוכנית ממשיכה כאילו הדף תמיד היה שם.' },
+    { title: 'המחיר', caption: 'הדיסק איטי בערך פי 1,000 מה-RAM. אם דפים עוברים הלוך ושוב בלי הפסקה, המחשב מאט מאוד. מצב כזה נקרא thrashing, והמחשב נראה תקוע.' }
+  ];
+  var MAP_NAMES = ['תוכנה', 'מעבד', 'RAM', 'דיסק'];
+  var MAP_ACTIVE = [[0, 2], [1, 2], [2, 3], [0, 1], [2, 3], [2, 3]];
+
+  var cur = 0;
+  var art = document.getElementById('art');
+  var dotsEl = document.getElementById('dots');
+  var prevBtn = document.getElementById('prev');
+  var nextBtn = document.getElementById('next');
+  for (var d = 0; d < STEPS.length; d++) dotsEl.appendChild(document.createElement('i'));
+
+  var DEFS = '<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">' +
+    '<path d="M0 0L10 5L0 10z" style="fill:var(--ink)"/></marker></defs>';
+
+  function T(x, y, size, weight, fill, str) {
+    return '<text x="' + x + '" y="' + y + '" text-anchor="middle" style="font-family:var(--font-body);font-size:' +
+      size + 'px;font-weight:' + weight + ';fill:' + fill + '">' + str + '</text>';
+  }
+
+  function box(x, y, w, h, label, kind) {
+    var st = kind === 'hot' ? 'fill:var(--accent);stroke:var(--accent)'
+           : kind === 'dim' ? 'fill:var(--surface);stroke:var(--muted)'
+           : 'fill:var(--surface);stroke:var(--ink)';
+    var fc = kind === 'hot' ? 'var(--paper)' : 'var(--ink)';
+    return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="5" style="' + st + ';stroke-width:1"/>' +
+      T(x + w / 2, y + h / 2 + 4.5, 13, 500, fc, label);
+  }
+
+  function arrow(x1, y1, x2, y2) {
+    return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 +
+      '" style="stroke:var(--ink);stroke-width:1.2" marker-end="url(#ar)"/>';
+  }
+
+  function dashedFrame(x, y, w, h) {
+    return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="8" style="fill:none;stroke:var(--muted);stroke-width:1;stroke-dasharray:4 3"/>';
+  }
+
+  function miniMap(active) {
+    var out = '';
+    for (var i = 0; i < MAP_NAMES.length; i++) {
+      var on = active.indexOf(i) > -1;
+      out += '<rect x="' + (6 + i * 78) + '" y="6" width="70" height="26" rx="4" style="fill:' +
+        (on ? 'var(--accent)' : 'var(--surface)') + ';stroke:' + (on ? 'var(--accent)' : 'var(--rule)') + ';stroke-width:1"/>';
+      out += T(6 + i * 78 + 35, 23, 10, 500, on ? 'var(--paper)' : 'var(--muted)', MAP_NAMES[i]);
+    }
+    return out;
+  }
+
+  var BUILD = [
+    function () {
+      var names = ['דפדפן', 'משחק', 'עורך', 'מוזיקה', 'וידאו', 'צאט', 'דואר', 'מפה', 'מחשבון', 'ספר', 'תמונות', 'מסוף'];
+      var out = dashedFrame(20, 22, 280, 140) + T(160, 14, 11, 500, 'var(--muted)', 'RAM');
+      for (var r = 0; r < 3; r++) {
+        for (var c = 0; c < 4; c++) {
+          var x = 24 + c * 70, y = 30 + r * 44;
+          out += '<rect x="' + x + '" y="' + y + '" width="62" height="36" rx="4" style="fill:var(--ink);stroke:var(--ink)"/>';
+          out += T(x + 31, y + 22, 10, 500, 'var(--paper)', names[r * 4 + c]);
+        }
+      }
+      out += arrow(160, 182, 160, 168);
+      out += box(60, 184, 200, 30, 'תוכנה חדשה', 'hot');
+      return out;
+    },
+    function () {
+      var map = [3, 0, 5, 1, 4, 2];
+      var out = T(70, 40, 11, 500, 'var(--ink)', 'תוכנית') + T(250, 40, 11, 500, 'var(--ink)', 'RAM');
+      var i;
+      for (i = 0; i < 6; i++) {
+        var y = 50 + i * 28;
+        out += '<line x1="110" y1="' + (y + 10) + '" x2="210" y2="' + (50 + map[i] * 28 + 10) +
+          '" style="stroke:var(--accent);stroke-width:1.5"/>';
+      }
+      for (i = 0; i < 6; i++) {
+        var yy = 50 + i * 28;
+        out += '<rect x="30" y="' + yy + '" width="80" height="20" rx="3" style="fill:var(--surface);stroke:var(--ink);stroke-width:1"/>';
+        out += T(70, yy + 14, 10, 500, 'var(--ink)', 'דף ' + (i + 1));
+        out += '<rect x="210" y="' + yy + '" width="80" height="20" rx="3" style="fill:var(--surface);stroke:var(--ink);stroke-width:1"/>';
+        out += T(250, yy + 14, 10, 500, 'var(--ink)', 'מסגרת ' + (i + 1));
+      }
+      return out;
+    },
+    function () {
+      var out = dashedFrame(20, 22, 280, 100) + T(160, 38, 11, 500, 'var(--muted)', 'RAM');
+      for (var i = 0; i < 6; i++) {
+        var x = 31 + i * 44, hot = i === 2;
+        out += '<rect x="' + x + '" y="50" width="38" height="34" rx="3" style="fill:' +
+          (hot ? 'var(--accent)' : 'var(--surface)') + ';stroke:' + (hot ? 'var(--accent)' : 'var(--ink)') + ';stroke-width:1"/>';
+        out += T(x + 19, 71, 12, 500, hot ? 'var(--paper)' : 'var(--ink)', String(i + 1));
+      }
+      out += arrow(136, 86, 136, 144);
+      out += '<rect x="40" y="146" width="240" height="50" rx="6" style="fill:var(--surface);stroke:var(--ink);stroke-width:1"/>';
+      out += T(160, 163, 11, 500, 'var(--muted)', 'קובץ החלפה בדיסק');
+      var xs = [56, 118, 180, 242];
+      for (var k = 0; k < 4; k++) {
+        out += '<rect x="' + xs[k] + '" y="172" width="36" height="18" rx="3" style="fill:' +
+          (k === 1 ? 'var(--accent)' : 'var(--surface)') + ';stroke:var(--ink);stroke-width:1"/>';
+      }
+      return out;
+    },
+    function () {
+      return box(40, 30, 240, 34, 'התוכנית מבקשת דף 3') +
+        arrow(160, 64, 160, 98) +
+        box(90, 100, 140, 34, 'שגיאת דף', 'hot') +
+        arrow(160, 134, 160, 160) +
+        box(60, 162, 200, 40, 'מערכת ההפעלה', 'dim');
+    },
+    function () {
+      var out = '<rect x="20" y="40" width="100" height="160" rx="8" style="fill:var(--surface);stroke:var(--ink);stroke-width:1"/>';
+      out += T(70, 60, 11, 500, 'var(--muted)', 'דיסק');
+      out += box(36, 100, 68, 28, 'דף 3', 'hot');
+      out += box(36, 140, 68, 24, 'דף 5', 'dim');
+      out += box(36, 172, 68, 24, 'דף 6', 'dim');
+      out += dashedFrame(150, 40, 150, 160);
+      out += T(225, 58, 11, 500, 'var(--muted)', 'RAM');
+      for (var r = 0; r < 3; r++) {
+        for (var c = 0; c < 2; c++) {
+          var k = r * 2 + c, x = 160 + c * 70, y = 72 + r * 44, dest = k === 2;
+          out += '<rect x="' + x + '" y="' + y + '" width="60" height="36" rx="4" style="fill:' +
+            (dest ? 'var(--accent)' : 'var(--ink)') + ';stroke:' + (dest ? 'var(--accent)' : 'var(--ink)') + '"/>';
+          out += T(x + 30, y + 22, 10, 500, 'var(--paper)', dest ? 'דף 3' : 'דף ' + (k === 0 ? 1 : k === 1 ? 2 : k === 3 ? 4 : k === 4 ? 5 : 6));
+        }
+      }
+      out += arrow(106, 114, 156, 132);
+      return out;
+    },
+    function () {
+      var out = '<line x1="30" y1="200" x2="290" y2="200" style="stroke:var(--muted);stroke-width:1"/>';
+      out += '<rect x="40" y="196" width="60" height="4" style="fill:var(--sage)"/>';
+      out += '<rect x="200" y="50" width="60" height="150" rx="3" style="fill:var(--accent)"/>';
+      out += T(70, 218, 11, 500, 'var(--ink)', 'RAM');
+      out += T(230, 218, 11, 500, 'var(--ink)', 'דיסק SSD');
+      out += T(70, 186, 11, 500, 'var(--sage)', '80 ns');
+      out += T(230, 40, 11, 500, 'var(--accent)', '100 µs');
+      out += T(120, 100, 22, 500, 'var(--ink)', '×1000');
+      out += T(120, 122, 11, 400, 'var(--muted)', 'איטי יותר');
+      return out;
+    }
+  ];
+
+  function render() {
+    document.getElementById('count').textContent = (cur + 1) + ' / ' + STEPS.length;
+    document.getElementById('stepTitle').textContent = STEPS[cur].title;
+    document.getElementById('caption').textContent = STEPS[cur].caption;
+    art.setAttribute('aria-label', STEPS[cur].title);
+    art.innerHTML = '<title>' + STEPS[cur].title + '</title>' + DEFS + miniMap(MAP_ACTIVE[cur]) +
+      '<g transform="translate(0,28)">' + BUILD[cur]() + '</g>';
+    for (var k = 0; k < dotsEl.children.length; k++) dotsEl.children[k].className = k === cur ? 'on' : '';
+    prevBtn.disabled = cur === 0;
+    nextBtn.disabled = cur === STEPS.length - 1;
+  }
+
+  prevBtn.addEventListener('click', function () { if (cur > 0) { cur--; render(); } });
+  nextBtn.addEventListener('click', function () { if (cur < STEPS.length - 1) { cur++; render(); } });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft' && cur < STEPS.length - 1) { cur++; render(); }
+    if (e.key === 'ArrowRight' && cur > 0) { cur--; render(); }
+  });
+
+  render();
+})();
+</script>

@@ -1,0 +1,208 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>מה GPU עושה אחרת</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@700&family=Heebo:wght@400;500&display=swap">
+<style>
+:root {
+  --paper: #F4EFE6; --surface: #FBF8F2; --ink: #1E1A14; --muted: #6B6257; --rule: #D8CFBF;
+  --accent: #B5532A; --sage: #4F7A66;
+  --font-display: "Frank Ruhl Libre", serif; --font-body: "Heebo", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #16130F; --surface: #1E1A14; --ink: #EDE6DA; --muted: #A39A8C; --rule: #3A342B;
+    --accent: #E07A4F; --sage: #7FAE95; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #16130F; --surface: #1E1A14; --ink: #EDE6DA; --muted: #A39A8C; --rule: #3A342B;
+  --accent: #E07A4F; --sage: #7FAE95; color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  box-sizing: border-box; height: 100%; margin: 0; overflow: hidden;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px;
+  padding-block: 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.app { height: 100%; max-width: 540px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+h1 { margin: 0; font-family: var(--font-display); font-size: 1.5rem; line-height: 1.2; }
+.stage {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+  border: 1px solid var(--rule); background: var(--surface); padding: 10px 12px;
+}
+.stage-head { display: flex; justify-content: space-between; align-items: baseline; flex: 0 0 auto; }
+.stage-head h2 { margin: 0; font-family: var(--font-display); font-size: 1.25rem; }
+.count { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+#art { flex: 1 1 auto; min-height: 0; width: 100%; height: 100%; display: block; direction: ltr; }
+.caption { margin: 0; flex: 0 0 auto; min-height: 4.6em; font-size: 1rem; line-height: 1.55; text-align: center; }
+.dots { display: flex; gap: 7px; justify-content: center; flex: 0 0 auto; }
+.dots i { display: block; width: 8px; height: 8px; border-radius: 4px; background: var(--rule); }
+.dots i.on { width: 22px; background: var(--accent); }
+.nav { display: flex; gap: 10px; flex: 0 0 auto; }
+.nav button {
+  flex: 1; min-height: 50px; font: inherit; font-weight: 500; font-size: 1rem;
+  border: 1px solid var(--ink); background: var(--ink); color: var(--paper); cursor: pointer;
+}
+.nav button:disabled { opacity: 0.35; cursor: default; }
+.nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="app" dir="rtl" lang="he">
+  <h1>מה GPU עושה אחרת</h1>
+
+  <section class="stage">
+    <div class="stage-head">
+      <h2 id="stepTitle"></h2>
+      <span class="count" id="count"></span>
+    </div>
+    <svg id="art" viewBox="0 0 320 260" role="img" preserveAspectRatio="xMidYMid meet"></svg>
+  </section>
+
+  <p class="caption" id="caption" aria-live="polite"></p>
+  <div class="dots" id="dots" aria-hidden="true"></div>
+
+  <nav class="nav">
+    <button id="prev" type="button">הקודם</button>
+    <button id="next" type="button">הבא</button>
+  </nav>
+</div>
+
+<script>
+(function () {
+  var STEPS = [
+    { title: 'שני סוגי ליבות', caption: 'למעבד יש מעט ליבות חזקות שמתמודדות עם משימות מורכבות. לכרטיס המסך יש אלפי ליבות קטנות.' },
+    { title: 'הבעיה: מסך', caption: 'מסך של מיליוני פיקסלים צריך לחשב צבע לכל פיקסל. החישוב זהה לכולם, רק המיקום שונה.' },
+    { title: 'מעבד: אחד בכל פעם', caption: 'מעבד עם ארבע ליבות מחשב ארבעה פיקסלים בכל רגע, והשאר ממתינים לתורם.' },
+    { title: 'GPU: הרבה במקביל', caption: 'כרטיס המסך מפעיל את אותה פעולה על הרבה פיקסלים במקביל, וכל ליבה מחשבת פיקסל אחד.' },
+    { title: 'ליבה אחת', caption: 'ליבת מעבד מסובכת, כי היא מנבאת לאן התוכנית תמשיך. ליבת GPU פשוטה, ולכן אפשר לשים בה אלפי ליבות.' },
+    { title: 'מה לא מתאים', caption: 'משימות שכל שלב תלוי בתוצאה של הקודם לא מתאימות לכרטיס. שם המעבד מהיר יותר.' }
+  ];
+
+  var cur = 0;
+  var art = document.getElementById('art');
+  var dotsEl = document.getElementById('dots');
+  var prevBtn = document.getElementById('prev');
+  var nextBtn = document.getElementById('next');
+  for (var d = 0; d < STEPS.length; d++) dotsEl.appendChild(document.createElement('i'));
+
+  var DEFS = '<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">' +
+    '<path d="M0 0L10 5L0 10z" style="fill:var(--ink)"/></marker></defs>';
+
+  function T(x, y, size, weight, fill, str) {
+    return '<text x="' + x + '" y="' + y + '" text-anchor="middle" style="font-family:var(--font-body);font-size:' +
+      size + 'px;font-weight:' + weight + ';fill:' + fill + '">' + str + '</text>';
+  }
+
+  function box(x, y, w, h, label, kind) {
+    var st = kind === 'hot' ? 'fill:var(--accent);stroke:var(--accent)'
+           : kind === 'dim' ? 'fill:var(--surface);stroke:var(--muted)'
+           : 'fill:var(--surface);stroke:var(--ink)';
+    var fc = kind === 'hot' ? 'var(--paper)' : 'var(--ink)';
+    return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="5" style="' + st + ';stroke-width:1"/>' +
+      T(x + w / 2, y + h / 2 + 4.5, 12, 500, fc, label);
+  }
+
+  function arrow(x1, y1, x2, y2) {
+    return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 +
+      '" style="stroke:var(--ink);stroke-width:1.2" marker-end="url(#ar)"/>';
+  }
+
+  function screen(active) {
+    var out = '<rect x="26" y="56" width="248" height="172" rx="6" style="fill:none;stroke:var(--ink);stroke-width:1"/>';
+    for (var r = 0; r < 8; r++) {
+      for (var c = 0; c < 12; c++) {
+        var i = r * 12 + c;
+        var idx = active ? active(i) : -1;
+        var style = idx >= 0 ? 'fill:var(--accent)' : 'fill:var(--surface);stroke:var(--rule);stroke-width:1';
+        out += '<rect x="' + (32 + c * 20) + '" y="' + (62 + r * 20) + '" width="18" height="18" rx="2" style="' + style + '"/>';
+        if (idx >= 0 && idx < 4) out += T(32 + c * 20 + 9, 62 + r * 20 + 13, 9, 500, 'var(--paper)', String(idx + 1));
+      }
+    }
+    return out;
+  }
+
+  var BUILD = [
+    function () {
+      var out = box(20, 50, 130, 150, '', 'normal');
+      out += T(85, 68, 12, 500, 'var(--ink)', 'מעבד');
+      var pos = [[34, 88], [94, 88], [34, 148], [94, 148]];
+      pos.forEach(function (p) {
+        out += '<rect x="' + p[0] + '" y="' + p[1] + '" width="50" height="50" rx="4" style="fill:var(--accent)"/>';
+      });
+      out += box(180, 50, 120, 150, '', 'normal');
+      out += T(240, 68, 12, 500, 'var(--ink)', 'כרטיס מסך');
+      for (var r = 0; r < 6; r++) {
+        for (var c = 0; c < 8; c++) {
+          out += '<rect x="' + (188 + c * 13) + '" y="' + (88 + r * 13) + '" width="10" height="10" rx="1" style="fill:var(--sage)"/>';
+        }
+      }
+      out += T(85, 226, 12, 500, 'var(--ink)', '4 ליבות חזקות');
+      out += T(240, 226, 12, 500, 'var(--ink)', 'אלפי ליבות קטנות');
+      return out;
+    },
+    function () {
+      return screen(null) + T(160, 240, 12, 500, 'var(--ink)', 'צבע לכל פיקסל, אותו חישוב');
+    },
+    function () {
+      var on = { 0: true, 1: true, 2: true, 3: true };
+      return screen(function (i) { return on[i] ? i : -1; }) +
+        T(160, 46, 12, 500, 'var(--accent)', '4 פיקסלים בכל רגע') +
+        T(160, 240, 12, 500, 'var(--muted)', 'שאר הפיקסלים ממתינים לתורם');
+    },
+    function () {
+      return screen(function () { return 9; }) +
+        T(160, 46, 12, 500, 'var(--accent)', 'כל הפיקסלים בבת אחת') +
+        T(160, 240, 12, 500, 'var(--muted)', 'כל ליבה מחשבת את הפיקסל שלה');
+    },
+    function () {
+      var out = box(20, 60, 140, 160, '', 'normal');
+      out += T(90, 80, 12, 500, 'var(--ink)', 'ליבת מעבד');
+      out += box(36, 96, 108, 32, 'מטמון', 'dim');
+      out += box(36, 136, 108, 32, 'מנבא קפיצות', 'dim');
+      out += box(36, 176, 108, 32, 'בקרה', 'dim');
+      for (var r = 0; r < 5; r++) {
+        for (var c = 0; c < 3; c++) {
+          out += '<rect x="' + (186 + c * 34) + '" y="' + (80 + r * 30) + '" width="26" height="22" rx="3" style="fill:var(--sage)"/>';
+          out += T(186 + c * 34 + 13, 80 + r * 30 + 15, 11, 500, 'var(--paper)', '×');
+        }
+      }
+      out += T(90, 240, 12, 500, 'var(--ink)', 'מורכבת, מנבאת');
+      out += T(240, 240, 12, 500, 'var(--ink)', 'פשוטה, מרובה');
+      return out;
+    },
+    function () {
+      var out = T(160, 84, 12, 500, 'var(--ink)', 'שרשרת: כל שלב מחכה לקודמו');
+      for (var i = 0; i < 6; i++) {
+        var x = 14 + i * 52;
+        out += box(x, 100, 40, 36, String(i + 1), 'normal');
+        if (i < 5) out += arrow(x + 42, 118, x + 50, 118);
+      }
+      out += T(160, 170, 12, 500, 'var(--accent)', 'כאן המעבד מהיר יותר');
+      out += T(160, 200, 12, 400, 'var(--muted)', 'כרטיס המסך מתאים כשכל פיקסל עצמאי מהאחרים');
+      return out;
+    }
+  ];
+
+  function render() {
+    document.getElementById('count').textContent = (cur + 1) + ' / ' + STEPS.length;
+    document.getElementById('stepTitle').textContent = STEPS[cur].title;
+    document.getElementById('caption').textContent = STEPS[cur].caption;
+    art.setAttribute('aria-label', STEPS[cur].title);
+    art.innerHTML = '<title>' + STEPS[cur].title + '</title>' + DEFS + BUILD[cur]();
+    for (var k = 0; k < dotsEl.children.length; k++) dotsEl.children[k].className = k === cur ? 'on' : '';
+    prevBtn.disabled = cur === 0;
+    nextBtn.disabled = cur === STEPS.length - 1;
+  }
+
+  prevBtn.addEventListener('click', function () { if (cur > 0) { cur--; render(); } });
+  nextBtn.addEventListener('click', function () { if (cur < STEPS.length - 1) { cur++; render(); } });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft' && cur < STEPS.length - 1) { cur++; render(); }
+    if (e.key === 'ArrowRight' && cur > 0) { cur--; render(); }
+  });
+
+  render();
+})();
+</script>
