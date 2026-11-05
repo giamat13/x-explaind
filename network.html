@@ -1,0 +1,1526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="A simple, step-by-step animation of how one WhatsApp message travels from your phone to your friend's phone.">
+<title>One Message's Journey</title>
+<style>
+:root{
+  --bg:#070b16; --scene:#0a1122; --panel:#101a2e; --panel2:#16223c; --line:#23314f; --line2:#34466f;
+  --text:#edf2fb; --muted:#a3afcc; --dim:#6f7ca1;
+  --green:#25d366; --teal:#2dd4bf; --cyan:#38bdf8; --sky:#60a5fa; --violet:#a78bfa;
+  --amber:#fbbf24; --orange:#fb923c; --pink:#f472b6; --red:#f87171; --blue:#53bdeb;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 var(--sans);min-height:100vh}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.app{max-width:1320px;margin:0 auto;padding:18px 20px 32px}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{width:42px;height:42px;border-radius:12px;flex:none;display:grid;place-items:center;background:#123325;color:var(--green)}
+.logo svg{width:24px;height:24px}
+h1{margin:0;font-size:clamp(18px,2.3vw,24px);line-height:1.2}
+.sub{margin:2px 0 0;color:var(--muted);font-size:14px}
+.btn{border:1px solid var(--line2);background:var(--panel);border-radius:12px;padding:10px 16px;font-weight:600;font-size:15px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn:hover:not(:disabled){border-color:var(--cyan)}
+.btn:disabled{opacity:.35;cursor:default}
+.btn.primary{background:var(--green);border-color:var(--green);color:#04210f}
+.btn.primary:hover{background:#3ee07e;border-color:#3ee07e}
+.btn svg{width:18px;height:18px;flex:none}
+.btn.small{padding:6px 11px;font-size:13.5px;border-radius:10px}
+
+/* progress */
+.progress{margin:0 0 14px}
+.progress ol{list-style:none;margin:0;padding:0;display:flex;align-items:center}
+.progress li{flex:1;display:flex;align-items:center}
+.progress li:last-child{flex:none}
+.progress li:not(:last-child)::after{content:"";flex:1;height:3px;background:var(--line);margin:0 4px;border-radius:2px}
+.progress li.past:not(:last-child)::after{background:var(--green)}
+.pg{width:30px;height:30px;border-radius:50%;border:2px solid var(--line2);background:var(--panel);color:var(--muted);font-weight:700;font-size:13px;padding:0;flex:none;transition:.2s}
+.pg:hover{border-color:var(--cyan);color:var(--text)}
+.past .pg{background:#123325;border-color:#1f7a4d;color:#b8f5d0}
+.cur .pg{background:var(--green);border-color:var(--green);color:#04210f;transform:scale(1.15);box-shadow:0 0 0 5px #25d36630}
+
+/* main layout */
+.main{display:flex;flex-direction:column;gap:12px}
+
+/* scene */
+.scene{position:relative;height:620px;border:1px solid var(--line);border-radius:18px;overflow:hidden;
+  background:var(--scene) radial-gradient(#16223f 1px,transparent 1.2px) 0 0/24px 24px}
+#map{position:absolute;inset:0;width:100%;height:100%;display:block;transition:opacity .45s;touch-action:pan-y}
+.closeup{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:108px 20px 150px;opacity:0;pointer-events:none;transition:opacity .45s;overflow:auto}
+.scene.is-closeup #map{opacity:0;pointer-events:none}
+.scene.is-closeup .closeup{opacity:1;pointer-events:auto}
+
+.chip{background:#0d1730e6;border:1px solid var(--line2);border-radius:999px;padding:4px 11px;font-size:13px;font-weight:600;white-space:nowrap}
+.chip.chipsafe{background:#0f2a1de6;border-color:var(--green);color:#b8f5d0;font-weight:800}
+.chip b{font-family:var(--mono);color:var(--green)}
+.tools{display:flex;gap:6px;flex:none}
+.tool{background:#0d1730e6;border:1px solid var(--line2);border-radius:10px;padding:5px 10px;font-size:13px;font-weight:600;display:inline-flex;gap:6px;align-items:center}
+.tool:hover{border-color:var(--cyan)}
+.tool svg{width:15px;height:15px}
+.hintchip{color:var(--muted);font-weight:500;animation:nudge 1.6s ease-in-out infinite}
+@keyframes nudge{50%{transform:translateY(-2px)}}
+.info{position:absolute;left:12px;top:104px;width:min(370px,calc(100% - 24px));background:#0f1a31f5;border:1px solid var(--line2);border-radius:14px;padding:14px 16px;z-index:4;box-shadow:0 12px 40px #0009;animation:up .25s ease}
+.info-h{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.info-h svg{width:30px;height:30px;color:var(--c)}
+.info-h b{flex:1;font-size:16px}
+.info p{margin:0;font-size:14.5px}
+.info .tech{margin-top:8px;font-size:13.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:8px}
+.x{border:1px solid var(--line2);background:var(--panel);border-radius:9px;width:32px;height:32px;font-size:18px;line-height:1;padding:0;flex:none}
+.overlay{position:absolute;right:12px;top:104px;z-index:3;width:min(270px,calc(100% - 24px))}
+.ov-card{background:#0f1a31f2;border:1px solid var(--line2);border-radius:14px;padding:12px 14px;animation:up .35s ease}
+.ov-card h4{margin:0 0 8px;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.ov-row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:14.5px;border-top:1px solid var(--line)}
+.ov-row b{font-weight:700}
+.ov-row.ok b{color:var(--green)}
+.ov-row.no b{color:var(--red)}
+.ov-sum{margin-top:8px;font-size:14px;color:var(--muted)}
+.ov-sum b{color:var(--green)}
+@keyframes up{from{transform:translateY(8px)}}
+
+/* svg map */
+.lnk path{fill:none;stroke-linecap:round}
+.lnk .motion{stroke:none}
+.lnk .base{stroke:#26375d;stroke-width:4}
+.lnk .flow{stroke-width:3;opacity:.35}
+.k-fiber .flow,.k-cable .flow{stroke:var(--cyan);stroke-dasharray:3 17;animation:flow 1.6s linear infinite}
+.k-cable .base{stroke:#18507a;stroke-width:7}
+.k-radio .base{stroke:#3a3175;stroke-width:2.5}
+.k-radio .flow{stroke:var(--violet);stroke-dasharray:9 9;animation:flowR 1.1s linear infinite}
+.k-wire .base,.k-dc .base{stroke:#33446b}
+.k-wire .flow,.k-dc .flow{stroke:#a9bbe0;stroke-dasharray:1 9;animation:flow 1.8s linear infinite}
+.k-dns .base{stroke:#5b4a1d;stroke-width:2.5;stroke-dasharray:6 6}
+.k-dns .flow{stroke:var(--amber);stroke-dasharray:2 18;animation:flow 1.4s linear infinite}
+.k-push .base{stroke:#61401f;stroke-width:2.5;stroke-dasharray:6 6}
+.k-push .flow{stroke:var(--orange);stroke-dasharray:2 18;animation:flow 1.4s linear infinite}
+.lnk.active .flow{opacity:1;stroke-width:4;animation-duration:.45s}
+@keyframes flow{to{stroke-dashoffset:-20}}
+@keyframes flowR{to{stroke-dashoffset:-18}}
+.ghost{opacity:0;pointer-events:none;transition:opacity .5s}
+.fade{opacity:.25;transition:opacity .5s}
+.node,.lnk,.deco{transition:opacity .5s}
+.node{cursor:pointer;outline:none}
+.node .bg{fill:#0d1528;stroke:var(--c);stroke-width:2.5}
+.node .ic{color:var(--c)}
+.node .ring{fill:none;stroke:var(--c);stroke-width:2.5;opacity:0;transform-box:fill-box;transform-origin:center}
+.node:hover .ring,.node:focus-visible .ring{opacity:.6}
+.node.ping .ring{animation:ping .8s ease-out}
+.node.awake .bg{fill:#2d1c0c;stroke:var(--orange);stroke-width:4}
+@keyframes ping{0%{opacity:.95;transform:scale(.9)}100%{opacity:0;transform:scale(1.7)}}
+.nl{font:600 16px var(--sans);fill:#dbe3f4;text-anchor:middle;paint-order:stroke;stroke:var(--scene);stroke-width:5px;stroke-linejoin:round}
+#map.far .nl{opacity:0}
+.c-dev{--c:var(--green)} .c-acc{--c:var(--violet)} .c-isp{--c:var(--sky)} .c-net{--c:var(--cyan)}
+.c-meta{--c:var(--teal)} .c-dns{--c:var(--amber)} .c-push{--c:var(--orange)}
+.dcbox{fill:#0d2324;stroke:#1f5550;stroke-width:2;stroke-dasharray:7 6}
+.dct{font:700 13px var(--sans);letter-spacing:.12em;fill:#55bfb0;text-anchor:middle}
+.ocean{fill:#0b2440;stroke:#1b4668}
+.oceanw{fill:none;stroke:#2a6b99;stroke-width:1.5;opacity:.5}
+.oceanl{font:italic 600 15px var(--sans);fill:#6fb3e0;text-anchor:middle}
+.badge rect{fill:#231a08;stroke:var(--amber);stroke-width:1.5}
+.badge text{font:700 14px var(--sans);fill:var(--amber);text-anchor:middle;dominant-baseline:central}
+.dot{transition:opacity .35s}
+.dot.hide{opacity:0}
+.dot.dim{opacity:.25}
+.dot .halo{opacity:.6;transform-box:fill-box;transform-origin:center;animation:breathe 1.3s ease-in-out infinite}
+@keyframes breathe{50%{transform:scale(1.25);opacity:.35}}
+.d-msg .halo,.d-msg .core{fill:var(--green)}
+.d-msg .core{stroke:#caffdf;stroke-width:1.5}
+.lock rect{fill:#ffd166}
+.lock path{fill:none;stroke:#ffd166;stroke-width:1.9}
+.ttlb{display:none}
+.dot.ttl-on .ttlb{display:inline}
+.ttlb rect{fill:#231a08;stroke:var(--amber);stroke-width:1.2}
+.ttlb text{font:700 12.5px var(--mono);fill:var(--amber);text-anchor:middle;dominant-baseline:central}
+.d-dns .halo,.d-dns .core{fill:var(--amber)}
+.d-push .halo,.d-push .core{fill:var(--orange)}
+.d-fetch .halo,.d-fetch .core{fill:var(--pink)}
+.d-ack .halo{fill:#b9c3dc} .d-ack .core{fill:#2a3552;stroke:#c9d2e8;stroke-width:1.5}
+.d-read .halo{fill:var(--blue)} .d-read .core{fill:#0c3346;stroke:var(--blue);stroke-width:1.5}
+.dot text.tk{font:700 11px var(--sans);text-anchor:middle;dominant-baseline:central;fill:#e6ecf8}
+.d-read text.tk{fill:var(--blue)}
+.fl{animation:flup 2.4s ease-out forwards}
+.fl rect{fill:#0c1731;stroke:var(--fc);stroke-width:1.5}
+.fl text{font:600 15px var(--sans);fill:#f1f6ff;dominant-baseline:central;text-anchor:middle}
+.fl-info{--fc:var(--cyan)} .fl-ttl{--fc:var(--amber)} .fl-ok{--fc:var(--green)} .fl-push{--fc:var(--orange)} .fl-meta{--fc:var(--teal)}
+.fl-hack{--fc:var(--red)} .fl-hackwarn{--fc:var(--orange)}
+@keyframes flup{0%{transform:translateY(8px)}12%{transform:none}80%{opacity:1}100%{opacity:0;transform:translateY(-8px)}}
+
+/* close-ups */
+.cu{display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;max-width:640px;margin:auto}
+.cu-hint{margin:0;font-size:14px;color:var(--muted);text-align:center}
+.phone{width:250px;height:360px;border-radius:32px;border:9px solid #1b2438;background:#0b141a;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 14px 40px #0009,0 0 0 1px #2b3754;flex:none}
+.ph-head{display:flex;align-items:center;gap:9px;padding:13px 11px 9px;background:#1f2c34}
+.av{width:32px;height:32px;border-radius:50%;background:#2e6b52;display:grid;place-items:center;font-weight:700}
+.ph-head b{display:block;font-size:14.5px;line-height:1.1}
+.ph-head small{font-size:11.5px;color:#8ea4b0}
+.ph-chat{flex:1;padding:10px 9px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;background:#0b141a radial-gradient(#15232b 1px,transparent 1.3px) 0 0/14px 14px;overflow:hidden}
+.ph-input{display:flex;gap:6px;padding:7px;align-items:center;margin:0}
+.ph-input input{flex:1;min-width:0;background:#1f2c34;border:1px solid transparent;border-radius:18px;padding:8px 12px;font-size:15px;outline:none}
+.ph-input input:focus{border-color:var(--green)}
+.ph-send{width:38px;height:38px;border-radius:50%;background:#00a884;border:0;display:grid;place-items:center;color:#fff;flex:none;transition:transform .15s}
+.ph-send svg{width:17px;height:17px}
+.ph-send.press{transform:scale(.8);background:var(--green)}
+.bubble{max-width:88%;padding:6px 9px 5px 10px;border-radius:9px;font-size:15px;line-height:1.35;overflow-wrap:anywhere;animation:bub .35s ease both}
+.bubble.out{align-self:flex-end;background:#005c4b;border-top-right-radius:3px}
+.bubble.in{align-self:flex-start;background:#202c33;border-top-left-radius:3px}
+.bubble .scr{font-family:var(--mono);font-size:13px;color:#8ff0b6}
+.bm{float:right;font-size:11px;color:#9fc5bb;margin:6px 0 -2px 10px;display:inline-flex;align-items:center;gap:3px}
+.bubble.in .bm{color:#8ea4b0}
+@keyframes bub{from{opacity:0;transform:translateY(10px) scale(.96)}}
+.tk{display:inline-flex;width:18px;height:13px;color:#9fc5bb;vertical-align:middle}
+.tk svg{width:100%;height:100%}
+.tk.blue{color:var(--blue)}
+.lock-row{display:flex;align-items:center;gap:16px;width:100%;justify-content:center;flex-wrap:wrap}
+.msgbox{flex:1;min-width:170px;max-width:260px;min-height:92px;background:#0d1730;border:1px solid var(--line2);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.msgbox small{font-size:26px;line-height:1}
+.msgbox span{font-size:22px;font-weight:700;overflow-wrap:anywhere}
+.msgbox.cipher span{font:600 14px/1.45 var(--mono);color:var(--green);word-break:break-all}
+.biglock{width:54px;height:54px;color:var(--amber);flex:none}
+.biglock path{transition:transform .5s}
+.biglock.open path{transform:translateY(-3px)}
+.who3{display:flex;flex-direction:column;gap:8px;width:100%;max-width:420px}
+.who{display:flex;align-items:center;gap:10px;background:#0d1730;border:1px solid var(--line);border-radius:12px;padding:9px 12px;font-size:15px}
+.who:not(.show){visibility:hidden}
+.who.show{animation:up .4s ease forwards}
+.who i{width:26px;height:26px;border-radius:50%;flex:none;display:grid;place-items:center;font-style:normal;font-weight:800}
+.who.yes i{background:#12402a;color:var(--green)}
+.who.no i{background:#401a1d;color:var(--red)}
+
+/* envelopes (packet layers) */
+.env{width:100%}
+.ly{border:2px solid var(--lc);border-radius:13px;padding:8px 11px 10px;background:color-mix(in srgb,var(--lc) 8%,transparent)}
+.ly .ly{margin-top:7px}
+.ly.off{border-color:transparent;background:transparent;padding:0}
+.ly.off>.ly-h{display:none}
+.ly.on{animation:wrap .5s ease both}
+@keyframes wrap{from{transform:scale(1.04);opacity:.3}}
+.ly-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px}
+.ly-h b{color:var(--lc);font-size:15px}
+.ly-h span{font-size:14px;color:#cdd6ea}
+.ly-h em{font-style:normal;font-family:var(--mono);font-size:12px;color:var(--muted);flex-basis:100%}
+.ly-h .who-r{flex-basis:100%;font-size:12.5px;color:var(--muted)}
+.ly-bytes{font:700 12px var(--mono);background:#0a1224;border:1px solid var(--line2);border-radius:7px;padding:1px 7px;color:var(--green)}
+.ly-link{--lc:var(--violet)} .ly-ip{--lc:var(--sky)} .ly-tcp{--lc:var(--teal)} .ly-noise{--lc:var(--pink)} .ly-sig{--lc:var(--green)} .ly-meta{--lc:var(--amber)} .ly-app{--lc:#e2e8f5}
+
+/* caption */
+.caption{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px}
+.cap-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.cap-step{font-size:12.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--green)}
+.caption h2{margin:0 0 8px;font-size:24px;line-height:1.2}
+.cap-simple{margin:0;font-size:17px;line-height:1.55}
+.cap-tech{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.cap-tech summary{cursor:pointer;color:var(--cyan);font-weight:600;font-size:14.5px;list-style:none;display:inline-flex;align-items:center;gap:8px}
+.cap-tech summary::-webkit-details-marker{display:none}
+.cap-tech summary::before{content:"";width:7px;height:7px;border-right:2px solid;border-bottom:2px solid;transform:rotate(-45deg);transition:transform .2s}
+.cap-tech[open] summary::before{transform:rotate(45deg)}
+.cap-tech p{margin:8px 0 0;font-size:14.5px;color:#cbd4e8}
+.cap-ctl{margin-top:14px;display:flex;flex-direction:column;gap:6px}
+.cap-ctl small{color:var(--muted);font-size:13px}
+.cap-more{margin-top:14px}
+.seg{display:inline-flex;flex-wrap:wrap;background:#0a1224;border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;padding:6px 12px;border-radius:8px;font-size:14px;font-weight:600;color:var(--muted);white-space:nowrap}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
+.seg.mini button{padding:4px 9px;font-size:12.5px}
+.controls{display:flex;gap:10px;justify-content:center}
+.controls .btn{min-width:130px}
+.controls .btn.primary{min-width:180px}
+
+
+/* scene header, contextual switch and picture cards */
+.sc-top{position:absolute;top:12px;left:14px;right:12px;display:flex;align-items:center;gap:12px;z-index:3}
+.sc-title{flex:1;min-width:0;display:flex;align-items:center;gap:12px;font-size:24px;font-weight:800;line-height:1.2;text-shadow:0 2px 12px #000}
+.sc-num{width:36px;height:36px;border-radius:50%;background:var(--green);color:#04210f;display:grid;place-items:center;font-size:17px;flex:none}
+.sc-sub{position:absolute;top:60px;left:14px;right:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;z-index:3}
+.scene-ctl:empty{display:none}
+.scene-ctl .seg{background:#0a1224e6}
+.scene-ctl .seg button{font-size:14.5px;padding:7px 14px}
+.beats{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:flex;align-items:stretch;gap:6px;z-index:3;max-width:calc(100% - 24px)}
+.beat{width:124px;background:#0d1730f2;border:2px solid var(--line2);border-radius:16px;padding:10px 6px 9px;display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;opacity:.22;filter:grayscale(1);transition:opacity .4s,transform .4s,border-color .4s,box-shadow .4s}
+.beat.on{opacity:1;filter:none}
+.beat.cur{border-color:var(--green);box-shadow:0 0 0 5px #25d36628,0 10px 30px #0008;transform:translateY(-6px) scale(1.04)}
+.bi{font-size:32px;line-height:1;height:38px;display:flex;align-items:center;justify-content:center}
+.bi .tk{width:36px;height:26px}
+.bl{font-size:13.5px;font-weight:700;line-height:1.25;overflow-wrap:anywhere}
+.bsep{align-self:center;color:var(--dim);font-size:22px}
+.bx{position:relative;display:inline-block}
+.bx i{position:absolute;right:-10px;bottom:-4px;width:19px;height:19px;border-radius:50%;font-size:12px;font-style:normal;font-weight:900;display:grid;place-items:center;border:2px solid #0d1730}
+.bx i.ok{background:var(--green);color:#04210f}
+.bx i.no{background:var(--red);color:#2a0606}
+.split{display:flex;align-items:center;gap:12px;opacity:0;transition:opacity .5s;font-size:15px}
+.split.show{opacity:1}
+.sp-ic{font-size:40px}
+.sp-arr{font-size:24px;color:var(--muted)}
+.sp-grid{display:grid;grid-template-columns:repeat(8,12px);gap:4px}
+.sp-grid i{width:12px;height:12px;border-radius:3px;background:var(--green);opacity:0}
+.split.show .sp-grid i{animation:pop .3s ease forwards}
+@keyframes pop{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:none}}
+.split b{font-size:20px;color:var(--green)}
+#totalRow{gap:10px;font-size:13.5px;color:var(--muted)}
+#totalRow .sp-ic{font-size:26px}
+#totalRow b{font-size:22px}
+.chip #dataVal, #dataVal{color:var(--green)}
+.unl{font-size:44px;line-height:1}
+.hacker-wrap{display:flex;align-items:center;gap:10px;background:#2a0d0d;border:2px solid var(--red);border-radius:14px;padding:10px 16px;font-weight:700;font-size:15px;animation:up .4s ease forwards}
+.hacker-wrap .hk{font-size:28px;animation:shake 1.4s ease-in-out infinite}
+.hacker-wrap.blocked{border-color:var(--green);background:#0f2a1d}
+.hacker-wrap.blocked .hk{animation:none;filter:grayscale(1) opacity(.6)}
+@keyframes shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+.hk-note{flex-basis:100%;color:var(--orange);font-weight:600}
+.hk-explainer{margin:6px 0 0;font-size:12.5px;color:var(--muted)}
+.hackterm{position:absolute;left:12px;top:104px;z-index:5;width:min(280px,calc(100% - 24px));background:#060a07;border:1px solid #17391f;border-radius:12px;overflow:hidden;box-shadow:0 14px 34px #0009;font-family:var(--mono)}
+.ht-bar{display:flex;align-items:center;gap:5px;padding:6px 10px;background:#0d160e;border-bottom:1px solid #17391f}
+.ht-bar i{width:8px;height:8px;border-radius:50%;background:#e0554f}
+.ht-bar i:nth-child(2){background:#e0b84f}
+.ht-bar i:nth-child(3){background:#4fbf6b}
+.ht-bar span{margin-left:5px;color:#7fae86;font-size:11px;font-weight:700}
+.ht-body{padding:8px 10px;max-height:150px;overflow-y:auto;color:#63e88a;font-size:12px;line-height:1.6}
+.ht-line{white-space:pre-wrap;overflow-wrap:anywhere;animation:up .3s ease forwards}
+.ht-line.cmd::before{content:"$ ";color:#4d6b57}
+.ht-line.data{color:#3fd67a}
+.ht-line.muted{color:#5f8267}
+.ht-line.warn{color:var(--amber)}
+.ht-line.bad{color:#ff6b6b}
+.ht-line.bold{font-weight:800}
+.ht-line.sep{color:#4d6b57;font-style:italic;text-align:center;border-top:1px dashed #17391f;margin-top:4px;padding-top:6px}
+.more{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px}
+.more summary{cursor:pointer;font-weight:600;color:var(--muted)}
+.more[open] summary{margin-bottom:10px}
+.more .caption{border:0;padding:0;background:none}
+.cap-techp{margin:10px 0 0;font-size:14.5px;color:#cbd4e8}
+.cap-techp b{color:var(--cyan)}
+#map .nt{display:none}
+#map.tech .nt{display:inline}
+#map.tech .ns{display:none}
+
+/* options + modal */
+.backdrop{position:fixed;inset:0;background:#02050cbf;z-index:50;display:grid;place-items:center;padding:16px;animation:fade .2s}
+@keyframes fade{from{opacity:0}}
+.sheet{width:min(460px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--panel);border:1px solid var(--line2);border-radius:18px;padding:18px;box-shadow:0 30px 80px #000a}
+.sheet.wide{width:min(620px,100%)}
+.sheet-h{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}
+.sheet-h h3{margin:0;font-size:19px;flex:1}
+.sheet-h small{display:block;color:var(--muted);font-weight:500;font-size:13.5px}
+.opt{display:flex;flex-direction:column;gap:6px;padding:12px 0;border-top:1px solid var(--line)}
+.opt label,.opt .lbl{font-size:14px;color:var(--muted)}
+.opt input[type=text]{background:#0a1224;border:1px solid var(--line2);border-radius:10px;padding:9px 12px;font-size:16px;outline:none}
+.opt input[type=text]:focus{border-color:var(--green)}
+.opt input[type=range]{accent-color:var(--green);width:100%}
+.env-note{margin:12px 0 0;font-size:14px;color:var(--muted)}
+
+footer{margin-top:18px;font-size:12.5px;color:var(--dim);text-align:center}
+
+@media (max-width:980px){
+}
+@media (max-width:640px){
+  .app{padding:12px 12px 92px}
+  .sub{display:none}
+  .top .btn .lbl{display:none}
+  .pg{width:24px;height:24px;font-size:11px;border-width:1.5px}
+  .progress li:not(:last-child)::after{margin:0 2px}
+  .scene{height:540px;border-radius:14px}
+  .closeup{padding:118px 10px 128px}
+  .phone{width:210px;height:270px}
+  .cu{gap:10px}
+  .cu-hint{font-size:13px}
+  .caption{padding:15px}
+  .caption h2{font-size:21px}
+  .cap-simple{font-size:16px}
+  .controls{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#0a1122f0;backdrop-filter:blur(10px);border-top:1px solid var(--line2)}
+  .tool .lbl{display:none}
+  .msgbox{min-width:130px}
+  .overlay{top:120px}
+  .info{top:120px}
+  .hackterm{top:120px;font-size:11px}
+  .sc-title{font-size:17px;gap:8px}
+  .sc-num{width:28px;height:28px;font-size:14px}
+  .beats{gap:4px;left:8px;right:8px;transform:none;bottom:8px}
+  .beat{width:auto;flex:1 1 0;min-width:0;padding:6px 3px;border-radius:11px}
+  .bi{font-size:23px;height:28px}
+  .bl{font-size:11px}
+  .bsep{display:none}
+  .controls .btn{min-width:0;flex:1}
+  .controls .btn.primary{flex:1.5}
+}
+@media (prefers-reduced-motion:reduce){
+  .lnk .flow,.dot .halo{animation:none!important}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-phone" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="5" width="20" height="38" rx="4.5"/><path d="M21 9.8h6"/><circle cx="24" cy="37.4" r="1.7" fill="currentColor" stroke="none"/></g></symbol>
+    <symbol id="i-wifi" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="30" width="34" height="10" rx="3"/><path d="M12 30l-2-8M36 30l2-8"/><path d="M17.5 19.5a9.5 9.5 0 0 1 13 0M13.5 14.5a15.5 15.5 0 0 1 21 0"/><circle cx="24" cy="23.5" r="1.8" fill="currentColor" stroke="none"/></g></symbol>
+    <symbol id="i-modem" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="13" width="32" height="22" rx="3.5"/><path d="M14 20h20"/><circle cx="15" cy="28" r="1.5" fill="currentColor" stroke="none"/><circle cx="21" cy="28" r="1.5" fill="currentColor" stroke="none"/><circle cx="27" cy="28" r="1.5" fill="currentColor" stroke="none"/><path d="M24 35v7"/></g></symbol>
+    <symbol id="i-cloud" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 36h19a8 8 0 0 0 1-15.9A11 11 0 0 0 14.3 18.1 9 9 0 0 0 15 36z"/></g></symbol>
+    <symbol id="i-core" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 36h19a8 8 0 0 0 1-15.9A11 11 0 0 0 14.3 18.1 9 9 0 0 0 15 36z"/><path d="M19 31v-3M24 31v-6M29 31v-9"/></g></symbol>
+    <symbol id="i-tower" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M24 17L16 43M24 17l8 26M19.5 33h9M18 38.5h12M21.6 25.5h4.8"/><circle cx="24" cy="14" r="2.3" fill="currentColor" stroke="none"/><path d="M17.5 8.5a8.5 8.5 0 0 0 0 11M30.5 8.5a8.5 8.5 0 0 1 0 11M13 5a13 13 0 0 0 0 18M35 5a13 13 0 0 1 0 18"/></g></symbol>
+    <symbol id="i-router" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="24" r="16"/><path d="M17.5 17.5l13 13M30.5 17.5l-13 13"/><path d="M17.5 22.5v-5h5M30.5 25.5v5h-5M25.5 17.5h5v5M22.5 30.5h-5v-5"/></g></symbol>
+    <symbol id="i-ixp" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="17" y="17" width="14" height="14" rx="3"/><path d="M24 17V9M24 31v8M17 24H9M31 24h8M18.5 18.5l-6-6M29.5 29.5l6 6M29.5 18.5l6-6M18.5 29.5l-6 6"/></g><g fill="currentColor"><circle cx="24" cy="7.5" r="2.6"/><circle cx="24" cy="40.5" r="2.6"/><circle cx="7.5" cy="24" r="2.6"/><circle cx="40.5" cy="24" r="2.6"/><circle cx="11.5" cy="11.5" r="2.6"/><circle cx="36.5" cy="36.5" r="2.6"/><circle cx="36.5" cy="11.5" r="2.6"/><circle cx="11.5" cy="36.5" r="2.6"/></g></symbol>
+    <symbol id="i-dns" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10a3 3 0 0 1 3-3h21v28H15a3 3 0 0 0-3 3z"/><path d="M12 38a3 3 0 0 0 3 3h21v-6"/><path d="M18 14h12M18 20h8"/></g></symbol>
+    <symbol id="i-lb" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="24" r="4.5"/><path d="M15.5 24H21M21 24c5 0 6-11 12-11h4M21 24h16M21 24c5 0 6 11 12 11h4"/></g></symbol>
+    <symbol id="i-server" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="10" y="7" width="28" height="10" rx="2.5"/><rect x="10" y="19" width="28" height="10" rx="2.5"/><rect x="10" y="31" width="28" height="10" rx="2.5"/><path d="M24 12h9M24 24h9M24 36h9"/></g><g fill="currentColor"><circle cx="15.5" cy="12" r="1.6"/><circle cx="15.5" cy="24" r="1.6"/><circle cx="15.5" cy="36" r="1.6"/></g></symbol>
+    <symbol id="i-bell" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 33V22a9 9 0 0 1 18 0v11l3.5 4h-25z"/><path d="M20.5 40.5a3.5 3.5 0 0 0 7 0"/></g></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 19.5l1.2-3.9A8.5 8.5 0 1 1 8.6 19z"/></svg></div>
+      <div>
+        <h1>How a WhatsApp message travels</h1>
+        <p class="sub">From your phone to your friend's phone, in 11 steps.</p>
+      </div>
+    </div>
+    <button class="btn" id="optBtn" aria-label="Options"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg><span class="lbl">Options</span></button>
+  </header>
+
+  <nav class="progress" id="progress" aria-label="Steps"></nav>
+
+  <div class="main">
+    <section class="scene" id="scene" aria-label="Animation">
+      <svg id="map" role="img" aria-label="Map of the message's path"></svg>
+      <div class="closeup" id="closeup"></div>
+      <div class="sc-top">
+        <div class="sc-title"><span class="sc-num" id="scNum">1</span><span id="scTitle"></span></div>
+        <div class="tools">
+          <button class="tool" id="pktTool" hidden aria-label="Look inside the envelope">🔍<span class="lbl">Look inside</span></button>
+          <button class="tool" id="wholeBtn" hidden><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="lbl" id="wholeLbl">Whole map</span></button>
+          <button class="tool" id="replayBtn" aria-label="Replay this step"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v4.5h4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="lbl">Replay</span></button>
+        </div>
+      </div>
+      <div class="sc-sub">
+        <span class="chip" id="chipMs" hidden title="Time since you tapped Send">⏱ <b id="msVal">0</b></span>
+        <span class="chip" id="chipHops" hidden title="Sorting stations passed">🔀 <b id="hopVal">0</b></span>
+        <span class="chip" id="chipData" hidden title="Data used from your plan">📶 <b id="dataVal">0 B</b></span>
+        <span class="chip chipsafe" id="chipSafe" hidden title="On its way from your phone to your friend's — a hacker can never read it in transit, whatever else they try">🔒 On this trip: always safe</span>
+        <span class="chip hintchip" id="hint" hidden>👆 Tap any icon</span>
+        <div class="scene-ctl" id="sceneCtl"></div>
+      </div>
+      <div class="overlay" id="overlay"></div>
+      <div class="info" id="info" role="dialog" aria-labelledby="infoTitle" hidden></div>
+      <div class="hackterm" id="hackTerm" hidden aria-live="polite"><div class="ht-bar"><i></i><i></i><i></i><span>🕵️ hacker’s laptop</span></div><div class="ht-body" id="hackTermBody"></div></div>
+      <div class="beats" id="beats" aria-live="polite"></div>
+    </section>
+
+    <div class="controls">
+      <button class="btn" id="prevBtn" aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Back</button>
+      <button class="btn primary" id="playBtn">▶ Play all</button>
+      <button class="btn" id="nextBtn" aria-label="Next">Next<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+
+    <details class="more"><summary>📖 Read the explanation</summary><article class="caption" id="caption"></article></details>
+  </div>
+
+  <footer>A simplified teaching tool, not affiliated with WhatsApp or Meta. Routes and timings are typical examples; IP addresses are from documentation ranges.</footer>
+</div>
+
+<div class="backdrop" id="optSheet" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="optTitle">
+    <div class="sheet-h"><h3 id="optTitle">Options</h3><button class="x" data-close aria-label="Close">×</button></div>
+    <div class="opt"><label for="msgInput">Your message</label><input type="text" id="msgInput" maxlength="60" value="Hi!" autocomplete="off"></div>
+    <div class="opt"><span class="lbl">Your phone uses</span><div class="seg" data-bind="myNet"><button data-val="wifi">Wi-Fi</button><button data-val="cell">Cellular (4G/5G)</button></div></div>
+    <div class="opt"><span class="lbl">Your friend's phone uses</span><div class="seg" data-bind="friendNet"><button data-val="wifi">Wi-Fi</button><button data-val="cell">Cellular (4G/5G)</button></div></div>
+    <div class="opt"><span class="lbl">Your friend is</span><div class="seg" data-bind="online"><button data-val="on">Online</button><button data-val="off">Offline / app closed</button></div></div>
+    <div class="opt"><span class="lbl">Explanations</span><div class="seg" data-bind="mode"><button data-val="simple">Simple</button><button data-val="tech">Technical</button></div></div>
+    <div class="opt hacker-opt"><span class="lbl">🕵️ Simulate a hacker watching?</span><div class="seg" data-bind="hacker"><button data-val="off">No</button><button data-val="on">Yes</button></div></div>
+    <div class="opt hacker-opt" id="wifiSecOpt" hidden><span class="lbl">Does the hacker get onto your Wi-Fi?</span><div class="seg" data-bind="wifiSec"><button data-val="strong" title="Strong password">❌ No</button><button data-val="weak" title="Weak password">🎲 50/50</button><button data-val="open" title="Open network, no password">✅ Yes</button></div></div>
+    <p class="hk-explainer" id="wifiSecNote" hidden>This only decides whether the hacker gets onto your network at all — a weak password really can go either way. Reading the message itself is never part of that bet: it always stays blocked by end-to-end encryption, whether they get in or not.</p>
+    <div class="opt hacker-opt" id="backupOpt" hidden><span class="lbl">📥 Your chat backup (Google Drive / iCloud)</span><div class="seg" data-bind="backup"><button data-val="on" title="Recommended — turn this on in WhatsApp settings">🔒 Encrypted</button><button data-val="off" title="Older default, before this feature existed">😬 Not encrypted</button></div></div>
+    <p class="hk-explainer" id="backupNote" hidden>This is the one real way old messages do get exposed — not by catching them on the way, but from an unencrypted backup sitting in your cloud account. If a hacker breaks into that account, an unencrypted backup opens right up. It has nothing to do with the message crossing the internet, and turning on encrypted backups (WhatsApp Settings → Chats → Chat backup) closes it completely.</p>
+    <div class="opt"><label for="speed">Animation speed: <b id="speedOut">1×</b></label><input type="range" id="speed" min="0.25" max="3" step="0.25" value="1"></div>
+  </div>
+</div>
+
+<div class="backdrop" id="pktSheet" hidden>
+  <div class="sheet wide" role="dialog" aria-modal="true" aria-labelledby="pktTitle">
+    <div class="sheet-h"><h3 id="pktTitle"></h3><button class="x" data-close aria-label="Close">×</button></div>
+    <div id="pktBody"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------------- helpers ---------------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const NS = 'http://www.w3.org/2000/svg';
+function S(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtMs = v => (v < 10 ? v.toFixed(1) : Math.round(v)) + ' ms';
+const clock = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+const utf8len = s => new TextEncoder().encode(s).length;
+/* Rough, teaching-only sizes for each envelope, so the growing weight of all the
+   headers around a 2-character message is visible, not just told. */
+const HDR = { noise: 16, tcp: 20, ip: 20, linkWifi: 36, linkCell: 18 };
+function cipherBytesRaw(msg) { return 1 + 33 + Math.ceil((utf8len(msg) + 1) / 16) * 16 + 8; }
+function linkOverhead(net) { return net === 'wifi' ? HDR.linkWifi : HDR.linkCell; }
+function cumBytes(k, net) { // k: 0=locked note only, 1=+extra envelope, 2=+slip, 3=+address label, 4=+outer envelope
+  const c = cipherBytesRaw(state.msg);
+  const vals = [c, c + HDR.noise, c + HDR.noise + HDR.tcp, c + HDR.noise + HDR.tcp + HDR.ip, c + HDR.noise + HDR.tcp + HDR.ip + linkOverhead(net || state.myNet)];
+  return vals[k];
+}
+function packetTotalBytes(net) { return cumBytes(4, net); }
+function fmtBytes(n) { return n < 1000 ? Math.round(n) + ' B' : (n / 1000).toFixed(1) + ' KB'; }
+/* How much data this message has used so far, at the start of step i. Grows once
+   the envelopes are packed, and again as the delivery receipts travel back. */
+function dataAt(i) { return i <= 1 ? 0 : i === 2 ? cumBytes(0) : packetTotalBytes(state.myNet); }
+
+/* ---------------- state ---------------- */
+const state = { step: 0, msg: 'Hi!', cipher: '', mode: 'simple', myNet: 'wifi', friendNet: 'wifi', online: true, speed: 1, playing: false, paused: false, overview: false, hacker: false, wifiSec: 'strong', backup: 'on' };
+const tech = () => state.mode === 'tech';
+const M = () => esc(state.msg);
+const SERVER = '198.51.100.60';
+const ADDR = {
+  wifiA: { priv: '192.168.1.23', pub: '203.0.113.45', port: 51734, nat: 40112 },
+  cellA: { priv: '100.72.14.9', pub: '192.0.2.77', port: 51734, nat: 33081 },
+  wifiB: { priv: '192.168.0.14', pub: '203.0.113.88', port: 49822, nat: 61203 },
+  cellB: { priv: '100.80.3.7', pub: '192.0.2.140', port: 49822, nat: 50417 }
+};
+const myAddr = () => state.myNet === 'wifi' ? ADDR.wifiA : ADDR.cellA;
+const frAddr = () => state.friendNet === 'wifi' ? ADDR.wifiB : ADDR.cellB;
+
+/* ---------------- devices ---------------- */
+const DEV = {
+  phoneA: { icon: "phone",  cat: "dev",  label: ["Your phone"],                     tl: ["Your phone"] },
+  wifiA:  { icon: "wifi",   cat: "acc",  label: ["Home Wi-Fi", "box"],               tl: ["Wi-Fi router"] },
+  modemA: { icon: "modem",  cat: "acc",  label: ["Modem"],                           tl: ["Modem"] },
+  ispA:   { icon: "cloud",  cat: "isp",  label: ["Internet", "company"],             tl: ["ISP"] },
+  towerA: { icon: "tower",  cat: "acc",  label: ["Cell tower"],                      tl: ["Base station"] },
+  coreA:  { icon: "core",   cat: "isp",  label: ["Phone", "company"],                tl: ["Carrier core"] },
+  dns:    { icon: "dns",    cat: "dns",  label: ["Internet", "phone book"],          tl: ["DNS resolver"] },
+  r1:     { icon: "router", cat: "net",  label: ["Sorting", "station"],              tl: ["Router"] },
+  ixp:    { icon: "ixp",    cat: "net",  label: ["Meeting", "point"],                tl: ["Exchange point", "(IXP)"] },
+  r2:     { icon: "router", cat: "net",  label: ["Sorting", "station"],              tl: ["Router"] },
+  lb:     { icon: "lb",     cat: "meta", label: ["Front", "desk"],                   tl: ["Load", "balancer"] },
+  chat:   { icon: "server", cat: "meta", label: ["WhatsApp", "computer"],            tl: ["Chat", "server"] },
+  push:   { icon: "bell",   cat: "push", label: ["Apple / Google", "doorbell"],      tl: ["APNs / FCM"] },
+  rB:     { icon: "router", cat: "net",  label: ["Sorting", "station"],              tl: ["Router"] },
+  ispB:   { icon: "cloud",  cat: "isp",  label: ["Friend’s", "internet company"],    tl: ["Friend’s ISP"] },
+  wifiB:  { icon: "wifi",   cat: "acc",  label: ["Friend’s", "Wi-Fi box"],           tl: ["Friend’s", "Wi-Fi router"] },
+  coreB:  { icon: "core",   cat: "isp",  label: ["Friend’s", "phone company"],       tl: ["Friend’s", "carrier core"] },
+  towerB: { icon: "tower",  cat: "acc",  label: ["Cell tower"],                      tl: ["Base station"] },
+  phoneB: { icon: "phone",  cat: "dev",  label: ["Friend’s", "phone"],               tl: ["Friend’s", "phone"] }
+};
+const name = id => (tech() ? DEV[id].tl : DEV[id].label).join(' ');
+const INFO = {
+  phoneA: ['Where your message starts. WhatsApp lives here, and so does the key that locks your messages.', 'Holds your Signal private keys and keeps a long-lived encrypted connection to WhatsApp’s servers.'],
+  wifiA: ['The Wi-Fi box in your home. It catches what your phone sends through the air and passes it on.', `Wi-Fi access point + NAT router: swaps your private IP (${ADDR.wifiA.priv}) for your home’s public IP. Lowers the TTL by 1.`],
+  modemA: ['Connects your home to the cable that runs to your internet company.', 'Cable modem (DOCSIS), fiber ONT or DSL modem. Works below the IP layer, so the TTL doesn’t change.'],
+  ispA: ['The company you pay for internet. It connects your home to the rest of the world.', 'Access and aggregation routers. They see addresses and sizes, but WhatsApp content is encrypted.'],
+  towerA: ['Picks up what nearby phones send through the air and passes it to the phone company.', 'eNodeB (4G) or gNodeB (5G). Tunnels packets to the core with GTP-U, so it isn’t an IP hop.'],
+  coreA: ['Your phone company’s central computers. They connect your phone to the internet.', 'EPC or 5G Core. The P-GW/UPF gateway ends the tunnel, applies carrier-grade NAT and routes to the internet.'],
+  dns: ['The internet’s phone book. It tells your phone where WhatsApp’s computers are.', 'A recursive resolver (your provider’s, or a public one like 1.1.1.1). It asks root → .net → WhatsApp’s name servers and caches the answer.'],
+  r1: ['Like a sorting station at the post office: it reads the address label and sends the message one step closer.', 'Looks up the destination in its forwarding table (routes learned via BGP), lowers the TTL by 1 and forwards.'],
+  ixp: ['A building where many internet companies meet to pass messages straight to each other.', 'A shared layer-2 fabric for peering (e.g. DE-CIX, AMS-IX). It switches rather than routes, so the TTL doesn’t change.'],
+  lb: ['Like a front desk: it sends each message to a WhatsApp computer that isn’t busy.', 'Layer-4/7 load balancer using hashing and health checks; keeps each connection on the same server.'],
+  chat: ['A WhatsApp computer. It sees who the message is for and passes it on, but it can’t open it.', 'Removes the Noise transport layer, reads routing metadata and forwards the Signal ciphertext. Stores it if the recipient is offline.'],
+  push: ['Apple’s and Google’s “doorbell”. It can wake up an app on a sleeping phone.', 'APNs (iPhone) and FCM (Android). The phone keeps one low-power connection to them for all apps.'],
+  ispB: ['Your friend’s internet company. It sends the message along the cable to their home.', 'Routes to the home’s public IP over cable, fiber or DSL.'],
+  wifiB: ['The Wi-Fi box in your friend’s home. It finds your friend’s phone and sends the message through the air.', `Reverses the NAT mapping (public IP → ${ADDR.wifiB.priv}) and sends an 802.11 frame. (Modem not shown.)`],
+  coreB: ['Your friend’s phone company. It knows which cell tower their phone is near.', 'The gateway reverses carrier NAT and tunnels the packet (GTP-U) to the right base station.'],
+  towerB: ['Sends the message through the air to your friend’s phone.', 'The base station transmits it on the phone’s radio link.'],
+  phoneB: ['Your friend’s phone. It has the only key that can unlock your message.', 'Holds the recipient’s Signal private keys; decrypts, then sends delivery and read receipts.']
+};
+INFO.r2 = INFO.r1; INFO.rB = INFO.r1;
+
+/* ---------------- map layout (only the devices on the current path) ---------------- */
+let pos = {}, links = {}, nodeEls = {}, svg, world, floatG, dotsG, msgDot, storeBadge;
+const exitId = () => state.myNet === 'wifi' ? 'ispA' : 'coreA';
+function pathIds() {
+  return [...(state.myNet === 'wifi' ? ['phoneA', 'wifiA', 'modemA', 'ispA'] : ['phoneA', 'towerA', 'coreA']),
+    'r1', 'ixp', 'r2', 'lb', 'chat', 'rB',
+    ...(state.friendNet === 'wifi' ? ['ispB', 'wifiB', 'phoneB'] : ['coreB', 'towerB', 'phoneB'])];
+}
+function kindOf(a, b) {
+  const p = a + '-' + b;
+  if (/phone/.test(a) || /phone/.test(b)) return 'radio';
+  if (p === 'r2-lb') return 'cable';
+  if (p === 'lb-chat') return 'dc';
+  if (['wifiA-modemA', 'modemA-ispA', 'ispB-wifiB'].includes(p)) return 'wire';
+  return 'fiber';
+}
+function wavePath(x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len;
+  let d = `M${x1},${y1}`;
+  const n = Math.ceil(len / 3);
+  for (let i = 1; i <= n; i++) {
+    const t = len * i / n, env = Math.min(1, t / 30, (len - t) / 30), o = Math.sin(t / 17 * Math.PI * 2) * 6.5 * env;
+    d += ` L${(x1 + ux * t - uy * o).toFixed(1)},${(y1 + uy * t + ux * o).toFixed(1)}`;
+  }
+  return d;
+}
+
+function buildMap() {
+  svg = $('#map');
+  svg.innerHTML = '<defs><filter id="glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5"/></filter></defs>';
+  svg.classList.toggle('tech', tech());
+  world = S('g', {}, svg);
+  pos = {}; links = {}; nodeEls = {};
+  const seq = pathIds();
+  let x = 0;
+  seq.forEach(id => { pos[id] = { x, y: 0 }; x += id === 'r2' ? 460 : id === 'lb' ? 150 : id === 'chat' ? 210 : 180; });
+  pos.dns = { x: pos[exitId()].x + 90, y: -210 };
+  pos.push = { x: pos.chat.x + 105, y: -210 };
+
+  const deco = S('g', { class: 'deco' }, world);
+  const r2 = pos.r2, lb = pos.lb, chat = pos.chat;
+  S('rect', { x: r2.x + 70, y: 40, width: lb.x - r2.x - 190, height: 170, rx: 22, class: 'ocean' }, deco);
+  for (let k = 0; k < 4; k++) S('path', { d: `M${r2.x + 85} ${95 + k * 28} ` + 'q9 -5 18 0 t18 0 '.repeat(Math.floor((lb.x - r2.x - 220) / 36)), class: 'oceanw' }, deco);
+  S('text', { x: (r2.x + lb.x) / 2 - 50, y: 235, class: 'oceanl' }, deco).textContent = '🌊 Cable on the sea floor';
+  S('rect', { x: lb.x - 85, y: -120, width: chat.x - lb.x + 170, height: 250, rx: 22, class: 'dcbox' }, deco);
+  S('text', { x: (lb.x + chat.x) / 2, y: -90, class: 'dct' }, deco).textContent = '🏢 WHATSAPP';
+
+  const pairs = [];
+  for (let i = 0; i < seq.length - 1; i++) pairs.push([seq[i], seq[i + 1], kindOf(seq[i], seq[i + 1])]);
+  pairs.push([exitId(), 'dns', 'dns'], ['chat', 'push', 'push'], ['push', 'rB', 'push']);
+  const linkG = S('g', {}, world);
+  pairs.forEach(([a, b, kind]) => {
+    const A = pos[a], B = pos[b];
+    const d = kind === 'cable' ? `M${A.x},${A.y} C${A.x + 150},${A.y + 190} ${B.x - 170},${B.y + 190} ${B.x},${B.y}` : `M${A.x},${A.y} L${B.x},${B.y}`;
+    const g = S('g', { class: 'lnk k-' + kind }, linkG);
+    const vis = kind === 'radio' ? wavePath(A.x, A.y, B.x, B.y) : d;
+    S('path', { d: vis, class: 'base' }, g);
+    S('path', { d: vis, class: 'flow' }, g);
+    const m = S('path', { d, class: 'motion' }, g);
+    const len = m.getTotalLength();
+    links[a + '-' + b] = { a, b, kind, g, at: t => m.getPointAtLength(len * Math.max(0, Math.min(1, t))) };
+  });
+
+  const nodeG = S('g', {}, world);
+  Object.keys(pos).forEach(id => {
+    const n = DEV[id], p = pos[id];
+    const g = S('g', { class: 'node c-' + n.cat, transform: `translate(${p.x},${p.y})`, tabindex: 0, role: 'button', 'aria-label': name(id) + ': what does it do?' }, nodeG);
+    S('circle', { r: 42, class: 'ring' }, g);
+    S('circle', { r: 34, class: 'bg' }, g);
+    S('use', { href: '#i-' + n.icon, x: -21, y: -21, width: 42, height: 42, class: 'ic' }, g);
+    n.label.forEach((l, i) => { S('text', { x: 0, y: 60 + i * 19, class: 'nl ns' }, g).textContent = l; });
+    n.tl.forEach((l, i) => { S('text', { x: 0, y: 60 + i * 19, class: 'nl nt' }, g).textContent = l; });
+    g.addEventListener('click', () => openInfo(id));
+    g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openInfo(id); } });
+    nodeEls[id] = g;
+  });
+
+  storeBadge = S('g', { class: 'badge', transform: `translate(${chat.x},108)`, opacity: 0 }, world);
+  S('rect', { x: -62, y: -14, width: 124, height: 28, rx: 14 }, storeBadge);
+  S('text', { x: 0, y: 0 }, storeBadge).textContent = 'stored 🔒 locked';
+
+  floatG = S('g', {}, world);
+  dotsG = S('g', {}, world);
+  msgDot = makeDot('msg');
+}
+function makeDot(type) {
+  const g = S('g', { class: 'dot hide d-' + type, transform: 'translate(-999,-999)' }, dotsG);
+  S('circle', { r: 19, class: 'halo', filter: 'url(#glow)' }, g);
+  S('circle', { r: type === 'msg' ? 9 : 11, class: 'core' }, g);
+  if (type === 'msg') {
+    const l = S('g', { class: 'lock', transform: 'translate(7,-30)' }, g);
+    S('rect', { x: 0, y: 7, width: 14, height: 11, rx: 2.5 }, l);
+    S('path', { d: 'M3 7.2V5.4a4 4 0 0 1 8 0v1.8' }, l);
+    const t = S('g', { class: 'ttlb', transform: 'translate(-20,-40)' }, g);
+    S('rect', { x: -33, y: -11, width: 66, height: 22, rx: 11 }, t);
+    S('text', { x: 0, y: 0 }, t);
+  }
+  if (type === 'ack') S('text', { class: 'tk' }, g).textContent = '✓';
+  if (type === 'ack2' || type === 'read') S('text', { class: 'tk' }, g).textContent = '✓✓';
+  return g;
+}
+const placeDot = (d, x, y) => d.setAttribute('transform', `translate(${x.toFixed(1)},${y.toFixed(1)})`);
+const placeAt = (d, id) => placeDot(d, pos[id].x, pos[id].y);
+function linkFor(a, b) { const l = links[a + '-' + b] || links[b + '-' + a]; if (!l) throw new Error('no link ' + a + '-' + b); return l; }
+function ping(id) { const g = nodeEls[id]; if (!g) return; g.classList.remove('ping'); void g.getBoundingClientRect(); g.classList.add('ping'); }
+function floatAt(id, text, kind = 'info', dy = -70) {
+  const p = pos[id], outer = S('g', { transform: `translate(${p.x},${p.y + dy})` }, floatG);
+  const inner = S('g', { class: 'fl fl-' + kind }, outer);
+  const r = S('rect', { rx: 9, height: 32, y: -16 }, inner);
+  const t = S('text', { x: 0, y: 0 }, inner);
+  t.textContent = text;
+  let w = text.length * 8;
+  try { w = t.getComputedTextLength() || w; } catch (e) { /* not rendered */ }
+  r.setAttribute('x', -w / 2 - 11); r.setAttribute('width', w + 22);
+  const life = 2600 / Math.max(0.6, state.speed * (state.pace || 1));
+  inner.style.animationDuration = life + 'ms';
+  setTimeout(() => outer.remove(), life + 60);
+}
+function setExtras() {
+  const show = { dns: state.step === 4, push: state.step === 7 && !state.online };
+  ['dns', 'push'].forEach(id => nodeEls[id].classList.toggle('ghost', !show[id]));
+  Object.values(links).forEach(l => {
+    const extra = l.kind === 'dns' ? show.dns : l.kind === 'push' ? show.push : null;
+    if (extra !== null) l.g.classList.toggle('ghost', !extra);
+  });
+}
+
+/* ---------------- camera ---------------- */
+const scene = $('#scene');
+const cam = { x: 0, y: 0, w: 900 }, camT = { x: 0, y: 0, w: 900 };
+let camFollow = false, lastFrame = null, camLast = performance.now();
+function frame(ids, opt = {}) {
+  lastFrame = [ids, opt];
+  const ps = ids.map(id => pos[id]).filter(Boolean);
+  const xs = ps.map(p => p.x), ys = ps.map(p => p.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const W = scene.clientWidth || 800, H = scene.clientHeight || 500, pad = 130;
+  const maxW = opt.overview ? Infinity : W / (W < 520 ? 0.74 : 0.62);
+  const Hv = Math.max(200, H - 250); // room left between the title bar and the picture cards
+  let w = Math.max(Math.min(950, maxW), maxX - minX + pad * 2, ((maxY - minY) + 330) * W / Hv);
+  camFollow = !opt.overview && (opt.follow || w > maxW);
+  if (opt.follow) w = 1000;
+  camT.w = Math.min(w, maxW);
+  camT.y = (minY + maxY) / 2 + 30 + 25 * camT.w / W;
+  camT.x = camFollow ? minX - pad + camT.w / 2 : (minX + maxX) / 2;
+  if (opt.instant) Object.assign(cam, camT);
+}
+function camLoop(now) {
+  const dt = Math.min(100, now - camLast); camLast = now;
+  const k = 1 - Math.exp(-dt / 230);
+  cam.x += (camT.x - cam.x) * k; cam.y += (camT.y - cam.y) * k; cam.w += (camT.w - cam.w) * k;
+  const W = scene.clientWidth || 800, H = scene.clientHeight || 500, h = cam.w * H / W;
+  if (svg) {
+    svg.setAttribute('viewBox', `${(cam.x - cam.w / 2).toFixed(1)} ${(cam.y - h / 2).toFixed(1)} ${cam.w.toFixed(1)} ${h.toFixed(1)}`);
+    svg.classList.toggle('far', W / cam.w < 0.5);
+  }
+  requestAnimationFrame(camLoop);
+}
+const follow = x => { if (camFollow) camT.x = x; };
+
+/* ---------------- animation engine ---------------- */
+class Cancel extends Error {}
+let token = 0;
+// Every step can run its animations at its own relative pace (state.pace, set from
+// STEPS[i].pace), so a text-heavy step can linger while a simple hop moves briskly.
+// A "reading hold" (ignoreSpeed) ignores both the speed slider and the pace, so there
+// is always a predictable amount of time to read the caption, however fast playback is set.
+function tween(ms, fn, opt = {}) {
+  const my = token;
+  const rate = opt.ignoreSpeed ? 1 : state.speed * (state.pace || 1);
+  return new Promise((res, rej) => {
+    let p = 0, last = performance.now();
+    function f(now) {
+      if (my !== token) return rej(new Cancel());
+      const dt = Math.min(64, now - last); last = now;
+      if (!state.paused) p += ms > 0 ? dt * rate / ms : 1;
+      if (p >= 1) { if (fn) fn(1); return res(); }
+      if (fn) fn(p);
+      requestAnimationFrame(f);
+    }
+    requestAnimationFrame(f);
+  });
+}
+const wait = (ms, opt) => tween(ms, null, opt);
+
+/* routes, with typical one-way latencies in ms */
+const Lg = (from, to, ms, o = {}) => Object.assign({ from, to, ms, dot: 'msg' }, o);
+const P = (ms, label, o = {}) => Object.assign({ proc: true, ms, label }, o);
+const rev = (legs, o = {}) => legs.slice().reverse().map(l => Object.assign({}, l, { from: l.to, to: l.from }, o));
+const ROUTER = new Set(['wifiA', 'ispA', 'coreA', 'r1', 'r2', 'rB', 'ispB', 'wifiB', 'coreB']);
+const LEG_DUR = { radio: 1100, wire: 700, fiber: 900, cable: 2600, dc: 650, dns: 800, push: 900 };
+const upAccess = () => state.myNet === 'wifi'
+  ? [Lg('phoneA', 'wifiA', 3), Lg('wifiA', 'modemA', 0.5), Lg('modemA', 'ispA', 8)]
+  : [Lg('phoneA', 'towerA', 12), Lg('towerA', 'coreA', 5)];
+const internet = () => [Lg(exitId(), 'r1', 3), Lg('r1', 'ixp', 2), Lg('ixp', 'r2', 2), Lg('r2', 'lb', 36)];
+const downAccess = (dot = 'msg') => state.friendNet === 'wifi'
+  ? [Lg('rB', 'ispB', 4, { dot }), Lg('ispB', 'wifiB', 8, { dot }), Lg('wifiB', 'phoneB', 3, { dot })]
+  : [Lg('rB', 'coreB', 4, { dot }), Lg('coreB', 'towerB', 5, { dot }), Lg('towerB', 'phoneB', 12, { dot })];
+const deliver = () => state.online
+  ? [P(0.5, 'lookup'), { reset: true }, Lg('chat', 'rB', 5)]
+  : [P(0.5, 'store'), Lg('chat', 'push', 10, { dot: 'push' }), Lg('push', 'rB', 8, { dot: 'push' }), ...downAccess('push'),
+     P(250, 'wake', { vis: 1500 }), ...rev(downAccess('fetch')), Lg('rB', 'chat', 5, { dot: 'fetch' }), { reset: true }, Lg('chat', 'rB', 5)];
+const ROUTES = [() => [], () => [P(1)], () => [P(0.2)], upAccess, () => [], internet,
+  () => [Lg('lb', 'chat', 0.5), P(2, 'server')], deliver, downAccess, () => [P(1)], () => []];
+
+let hud = fresh();
+function fresh() { return { ms: 0, hops: 0, ttl: 64, pos: 'phoneA', natA: false, natB: false, side: 'up' }; }
+function arrive(h, to) {
+  h.pos = to;
+  if (ROUTER.has(to)) { h.ttl--; h.hops++; }
+  if (to === 'wifiA' || to === 'coreA') h.natA = true;
+  if (to === 'wifiB' || to === 'coreB') h.natB = true;
+}
+function apply(h, it) {
+  if (it.reset) { h.ttl = 64; h.side = 'down'; return; }
+  if (it.count !== false) h.ms += it.ms || 0;
+  if (!it.proc && it.dot === 'msg') arrive(h, it.to);
+}
+function stateAt(i) { const h = fresh(); for (let k = 0; k < i; k++) ROUTES[k]().forEach(it => apply(h, it)); return h; }
+const sum = legs => legs.reduce((a, l) => a + (l.ms || 0), 0);
+
+const temp = {};
+const tempDot = t => temp[t] || (temp[t] = makeDot(t));
+function dropTemp(t) { if (temp[t]) { temp[t].remove(); delete temp[t]; } }
+async function travel(it, hk = {}) {
+  const lk = linkFor(it.from, it.to), dot = it.dot === 'msg' ? msgDot : tempDot(it.dot);
+  dot.classList.remove('hide');
+  lk.g.classList.add('active');
+  if (hk.onStart) hk.onStart(it);
+  const m0 = hud.ms, dur = (LEG_DUR[lk.kind] || 900) * (it.dur || 1);
+  try {
+    await tween(dur, p => {
+      const pt = lk.at(lk.a === it.from ? p : 1 - p);
+      placeDot(dot, pt.x, pt.y);
+      if (it.count !== false) hud.ms = m0 + it.ms * p;
+      renderHud();
+      follow(pt.x);
+    });
+  } finally { lk.g.classList.remove('active'); }
+  if (it.count !== false) hud.ms = m0 + it.ms;
+  if (it.dot === 'msg') arrive(hud, it.to);
+  ping(it.to);
+  renderHud();
+  if (hk.onArrive) await hk.onArrive(it);
+}
+async function run(items, hk = {}) {
+  let prev = null;
+  for (const it of items) {
+    if (it.reset) { hud.ttl = 64; hud.side = 'down'; renderHud(); if (hk.onReset) await hk.onReset(); continue; }
+    if (it.proc) {
+      if (hk.onProc) await hk.onProc(it);
+      const m0 = hud.ms;
+      await tween(it.vis || 700, p => { hud.ms = m0 + it.ms * p; renderHud(); });
+      continue;
+    }
+    if (prev && prev !== it.dot && prev !== 'msg') dropTemp(prev);
+    prev = it.dot;
+    await travel(it, hk);
+  }
+  if (prev && prev !== 'msg') dropTemp(prev);
+}
+
+function renderHud() {
+  $('#msVal').textContent = tech() ? fmtMs(hud.ms) : secs(hud.ms) + ' sec';
+  $('#hopVal').textContent = hud.hops;
+  $('#chipMs').hidden = state.step < 1;
+  $('#chipHops').hidden = !(state.step >= 3 && state.step <= 8);
+  $('#dataVal').textContent = fmtBytes(state.data);
+  $('#chipData').hidden = state.step < 2;
+  $('#chipSafe').hidden = !state.hacker;
+  const t = $('.ttlb text', msgDot);
+  if (t) t.textContent = 'TTL ' + hud.ttl;
+}
+
+/* ---------------- ciphertext ---------------- */
+const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+function makeCipher(msg) {
+  let h = 2166136261;
+  for (const c of msg) { h ^= c.codePointAt(0); h = Math.imul(h, 16777619); }
+  let s = h >>> 0;
+  const rnd = () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const n = Math.ceil((1 + 33 + Math.ceil((utf8len(msg) + 1) / 16) * 16 + 8) / 3) * 4;
+  let out = '';
+  for (let i = 0; i < n; i++) out += B64[Math.floor(rnd() * 64)];
+  return out;
+}
+const short = (n = 16) => state.cipher.slice(0, n) + '…';
+async function scramble(el, from, to, ms) {
+  const A = [...from], B = [...to], L = Math.max(A.length, B.length);
+  const order = Array.from({ length: L }, (_, i) => i / L * 0.7 + Math.random() * 0.3);
+  let last = 0;
+  await tween(ms, p => {
+    const now = performance.now();
+    if (p < 1 && now - last < 50) return;
+    last = now;
+    const len = Math.round(A.length + (B.length - A.length) * Math.min(1, p * 1.6));
+    let s = '';
+    for (let i = 0; i < len; i++) s += p >= order[i] + 0.02 ? (B[i] || '') : B64[Math.floor(Math.random() * 64)];
+    el.textContent = s;
+  });
+  el.textContent = to;
+}
+
+/* ---------------- small UI pieces ---------------- */
+function tickSVG(n) {
+  if (n === 0) return `<span class="tk"><svg viewBox="0 0 20 16"><circle cx="10" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 5v3.3l2.1 1.3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>`;
+  if (n === 1) return `<span class="tk"><svg viewBox="0 0 20 16"><path d="M4 8.6l3 3L14.5 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+  return `<span class="tk ${n === 3 ? 'blue' : ''}"><svg viewBox="0 0 20 16"><path d="M1.5 8.6l3 3L12 4M8.6 11.2l.4.4L16.5 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+}
+const SEND = '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>';
+const LOCK = (id, open) => `<svg viewBox="0 0 16 16" class="biglock ${open ? 'open' : ''}" id="${id}" aria-hidden="true"><rect x="3" y="7" width="10" height="7.5" rx="1.6" fill="currentColor"/><path d="M5.2 7V5.2a2.8 2.8 0 0 1 5.6 0V7" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>`;
+const icon = n => `<svg viewBox="0 0 48 48" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const segHTML = (bind, opts) => `<div class="seg" data-bind="${bind}">${opts.map(([v, l]) => `<button data-val="${v}">${l}</button>`).join('')}</div>`;
+function phoneHTML(id, who, status, withInput) {
+  return `<div class="phone"><div class="ph-head"><span class="av">${who[0]}</span><div><b>${who}</b><small>${status}</small></div></div>
+    <div class="ph-chat" id="${id}Chat"></div>
+    ${withInput ? `<form class="ph-input" id="${id}Form"><input id="${id}In" maxlength="60" placeholder="Message" autocomplete="off" aria-label="Write your own message"><button class="ph-send" id="${id}Send" aria-label="Send">${SEND}</button></form>` : ''}</div>`;
+}
+const bubbleOut = n => `<div class="bubble out"><span>${M()}</span><span class="bm">${clock()}<span class="tkslot">${tickSVG(n)}</span></span></div>`;
+
+/* packet layers: outer → inner */
+function linkLeg(p, side) {
+  const wA = state.myNet === 'wifi', wB = state.friendNet === 'wifi';
+  const up = { phoneA: wA ? 'Wi-Fi radio: phone → router' : 'Radio: phone → cell tower', wifiA: 'Cable: router → modem', modemA: 'Line: modem → provider',
+    towerA: 'Fiber tunnel: tower → mobile network', r2: 'Light in the undersea cable', lb: 'Data-center network', chat: 'Data-center network' };
+  const down = { ispB: 'Line: provider → friend’s router', wifiB: 'Wi-Fi radio: router → friend’s phone', coreB: 'Fiber tunnel: → cell tower',
+    towerB: 'Radio: tower → friend’s phone', phoneB: wB ? 'Wi-Fi (just received)' : 'Radio (just received)' };
+  return (side === 'down' ? down[p] : up[p]) || 'Fiber: router → next router';
+}
+function packetLayers() {
+  const a = myAddr(), b = frAddr(), up = hud.side === 'up';
+  const src = up ? (hud.natA ? a.pub : a.priv) : SERVER, dst = up ? SERVER : (hud.natB ? b.priv : b.pub);
+  const ports = up ? `${hud.natA ? a.nat : a.port} → 443` : `443 → ${hud.natB ? b.port : b.nat}`;
+  return [
+    { k: 'link', n: 'Outer envelope', nt: 'Link-layer frame', s: linkLeg(hud.pos, hud.side), who: 'Only the next device. It’s replaced at every stop.', t: hud.pos === 'phoneA' ? (state.myNet === 'wifi' ? '802.11 frame · MAC addresses' : 'LTE / 5G NR radio frame') : 'link-layer frame, rebuilt at every hop', bytes: cumBytes(4, up ? state.myNet : state.friendNet) },
+    { k: 'ip', n: 'Address label', nt: 'IP header', s: up ? 'To: WhatsApp’s server' : 'To: your friend’s phone', who: 'Every sorting station on the way', t: `${src} → ${dst} · TTL ${hud.ttl}`, bytes: cumBytes(3) },
+    { k: 'tcp', n: '“Page 1 of 1” slip', nt: 'TCP header', s: 'Which app, and which page', who: up ? 'Your phone and WhatsApp’s server' : 'WhatsApp’s server and your friend’s phone', t: `ports ${ports} · seq 2847193005`, bytes: cumBytes(2) },
+    { k: 'noise', n: 'Extra envelope', nt: 'Noise transport encryption', s: 'Protects the trip to and from the server', who: 'The phone and WhatsApp’s server', t: 'Noise Pipes · Curve25519 · AES-GCM · SHA-256', bytes: cumBytes(1) },
+    { k: 'sig', n: 'Your locked note', nt: 'Signal-encrypted message', s: '🔒 ' + short(18), who: 'Only your friend’s phone', t: 'Signal protocol · AES-256 + HMAC-SHA256', bytes: cumBytes(0) }
+  ];
+}
+function envHTML(layers, hidden) {
+  let html = '';
+  for (let j = layers.length - 1; j >= 0; j--) {
+    const L = layers[j], off = hidden && j < layers.length - 1;
+    html = `<div class="ly ly-${L.k} ${off ? 'off' : ''}" data-j="${j}"><div class="ly-h"><b>${esc(tech() && L.nt ? L.nt : L.n)}</b><span class="ly-bytes">${fmtBytes(L.bytes)}</span>${!hidden || L.k === 'sig' ? `<span>${esc(L.s)}</span>` : ''}${tech() ? `<em>${esc(L.t)}</em>` : ''}${L.who && !hidden ? `<span class="who-r">Readable by: ${esc(L.who)}</span>` : ''}</div>${html}</div>`;
+  }
+  return `<div class="env">${html}</div>`;
+}
+
+/* ---------------- the 11 steps ----------------
+   Each step tells its story with "beats": picture cards (icon + a few everyday
+   words) in the scene that light up in order as the animation reaches that moment.
+   beat entry: [icon HTML, beginner label, technical label] */
+const TK = n => tickSVG(n);
+const bx = (ic, ok) => `<span class="bx">${ic}<i class="${ok ? 'ok' : 'no'}">${ok ? '✓' : '✕'}</i></span>`;
+const shortMsg = () => { const a = [...state.msg]; return a.length > 12 ? a.slice(0, 11).join('') + '…' : state.msg; };
+const secs = ms => (ms / 1000).toFixed(ms < 100 ? 3 : 2);
+const ttlFloat = id => floatAt(id, tech() ? `TTL ${hud.ttl + 1} → ${hud.ttl}` : '🏷️ ✓', tech() ? 'ttl' : 'info');
+/* The hacker's own screen — shown alongside the map/closeup so the attempt (and its
+   limits) are visible from their side too, not just as a badge on your side. */
+// A run's remaining `await`s can keep firing after a newer step has started (each
+// wait() only notices a cancellation that happens *during* it, not one that already
+// happened before it was called) — so the terminal tracks its own "which attempt is
+// still current" generation, independent of that, and a superseded one goes silent.
+let termGen = 0;
+function termShow() { termGen++; $('#hackTerm').hidden = false; $('#hackTermBody').innerHTML = ''; return termGen; }
+function termHide() { termGen++; $('#hackTerm').hidden = true; }
+async function termLine(gen, text, cls = '') {
+  if (gen !== termGen) return;
+  const body = $('#hackTermBody');
+  const p = document.createElement('div');
+  p.className = 'ht-line' + (cls ? ' ' + cls : '');
+  p.textContent = text;
+  body.appendChild(p);
+  body.scrollTop = body.scrollHeight;
+  await wait(550, { ignoreSpeed: true });
+  if (gen !== termGen) return;
+}
+const STEPS = [
+{
+  title: 'You tap Send',
+  pace: 1,
+  simple: () => `You write “${M()}” and tap Send. Right now the message is only on your phone.`,
+  tech: () => `WhatsApp creates a message with your text, a unique ID, a timestamp and your friend's WhatsApp ID. The app already keeps a connection to WhatsApp's servers open, so sending can start right away.`,
+  beats: () => [['⌨️', 'You write', 'Compose message'], ['👆', 'Tap Send', 'send()'], ['📱', 'Still on your phone', 'In app memory'], [TK(0), 'Not sent yet', 'Awaiting server ACK']],
+  closeup: () => `<div class="cu">${phoneHTML('pa', 'Friend', state.online ? 'online' : 'last seen today', true)}<p class="cu-hint">✎ Try your own message ↑</p></div>`,
+  async run(o = {}) {
+    const input = $('#paIn'), chat = $('#paChat'), send = $('#paSend');
+    beat(0, 0);
+    if (!o.typed) {
+      input.value = '';
+      await wait(500);
+      for (const ch of [...state.msg]) { input.value += ch; await wait(110); }
+    }
+    await wait(400);
+    beat(1, 0);
+    send.classList.add('press'); await wait(300); send.classList.remove('press');
+    input.value = '';
+    chat.insertAdjacentHTML('beforeend', bubbleOut(0));
+    await wait(900, { ignoreSpeed: true });
+    await beat(2);
+    await beat(3);
+  }
+},
+{
+  title: 'Your phone locks it',
+  pace: 0.8,
+  simple: () => `Your phone locks the message, like putting it in a safe. Only your friend's phone has the key. Not WhatsApp, and not anyone along the way.`,
+  tech: () => `WhatsApp uses the Signal Protocol. Every message gets its own key (the Double Ratchet), and the text is encrypted with AES-256 and sealed with HMAC-SHA256. Private keys never leave the phones, so servers only ever see scrambled data.`,
+  beats: () => [['🔒', 'Locked, like a safe', 'Signal Protocol'], [bx('📱', 1), 'Friend can open it', 'Recipient key only'], [bx('🏢', 0), "WhatsApp can't", 'Server sees ciphertext'], [bx('🕵️', 0), 'Nobody else can', 'ISP sees ciphertext']],
+  closeup: () => `<div class="cu">
+    <div class="lock-row"><div class="msgbox"><small>✉️</small><span>${M()}</span></div>${LOCK('lk', true)}<div class="msgbox cipher"><small>👀</small><span id="cph">&nbsp;</span></div></div>
+    <div class="hacker-wrap" id="hackWrap" hidden><span class="hk">🕵️</span><span class="hk-msg" id="hkMsg">trying to read it…</span></div></div>`,
+  async run() {
+    await wait(400);
+    beat(0, 0);
+    const m0 = hud.ms, lk = $('#lk');
+    const s = scramble($('#cph'), state.msg, state.cipher, 1900);
+    await tween(1900, p => { hud.ms = m0 + p; renderHud(); if (p > 0.5) lk.classList.remove('open'); });
+    await s;
+    await wait(700, { ignoreSpeed: true });
+    await beat(1);
+    await beat(2);
+    await beat(3);
+    if (state.hacker) {
+      const w = $('#hackWrap'); w.hidden = false;
+      const g1 = termShow();
+      await termLine(g1, 'tcpdump -i any host ' + SERVER, 'cmd');
+      await termLine(g1, short(24), 'data');
+      await termLine(g1, 'decrypt payload.bin', 'cmd');
+      await termLine(g1, 'AES-256 key: not found', 'bad');
+      $('#hkMsg').textContent = '🔒 Blocked — only your friend’s key opens this';
+      w.classList.add('blocked');
+      await termLine(g1, '[BLOCKED] Signal end-to-end encryption', 'bad bold');
+      if (state.backup === 'off') {
+        await wait(900, { ignoreSpeed: true });
+        await termLine(g1, '— giving up, trying your cloud backup instead —', 'sep');
+        await termLine(g1, 'check google-drive:/WhatsApp/Backups', 'cmd');
+        await termLine(g1, '[FOUND] backup.db (not end-to-end encrypted)', 'warn');
+        await termLine(g1, '[SUCCESS] read 1,204 old messages', 'bad bold');
+        await termLine(g1, '(today’s message isn’t backed up yet — only older ones)', 'muted');
+        $('#hkMsg').innerHTML = '🔒 This message: blocked<br><span style="color:var(--amber)">😬 Old backup: exposed</span>';
+      }
+      await wait(1500, { ignoreSpeed: true });
+      termHide();
+    }
+  }
+},
+{
+  title: 'It gets packed in envelopes',
+  pace: 0.8,
+  simple: () => `The locked message goes into a few envelopes, one inside the other. Each has information for a different part of the trip, like the address. A big photo would be cut into many small pieces, each in its own envelopes.`,
+  tech: () => `Encapsulation: the Signal ciphertext goes inside WhatsApp's transport encryption (Noise), then a TCP segment (ports, sequence numbers), then an IP packet (addresses, TTL 64), then a Wi-Fi or cellular frame. A big file like a photo is split into many packets of up to about 1,500 bytes each.`,
+  beats: () => [['✉️', 'Locked note', 'Signal ciphertext'], ['🔐', 'Extra envelope', 'Noise encryption'], ['📄', '“Page 1 of 1”', 'TCP · port 443'], ['🏷️', 'Address label', 'IP · TTL 64'], ['📦', `Packed: ${fmtBytes(packetTotalBytes())}`, `${fmtBytes(packetTotalBytes())} on the wire`]],
+  closeup: () => `<div class="cu">${envHTML(packetLayers(), true)}
+    <div class="split" id="split"><span class="sp-ic">🖼️</span><span class="sp-arr">→</span><span class="sp-grid">${Array.from({ length: 24 }, (_, k) => `<i style="animation-delay:${k * 45}ms"></i>`).join('')}</span><b>× 1,400</b></div><div class="split show" id="totalRow"><span class="sp-ic">📶</span><b id="totalBytes">${fmtBytes(packetTotalBytes())}</b><small>used from your data plan for this message</small></div></div>`,
+  async run() {
+    await wait(400);
+    await beat(0);
+    for (let j = 3, k = 1; j >= 0; j--, k++) {
+      const el = $(`.ly[data-j="${j}"]`); el.classList.remove('off'); el.classList.add('on');
+      const m0 = hud.ms;
+      await tween(700, p => { hud.ms = m0 + 0.05 * p; renderHud(); });
+      state.data = cumBytes(k); renderHud();
+      await beat(k);
+    }
+    $('#split').classList.add('show');
+    await wait(2200, { ignoreSpeed: true });
+  }
+},
+{
+  title: 'It leaves your phone',
+  pace: 1.15,
+  simple: () => state.myNet === 'wifi'
+    ? `Your phone sends it through the air, as invisible radio waves, to the Wi-Fi box in your home. From there it goes along a cable to your internet company.`
+    : `Your phone sends it through the air, as invisible radio waves, to the nearest cell tower. From there it goes to your phone company.`,
+  tech: () => state.myNet === 'wifi'
+    ? `The phone sends an 802.11 frame. The router swaps your private address for your home's public one (NAT) and lowers the TTL. The modem sends it over cable, fiber or DSL to your provider.`
+    : `The phone sends an LTE or 5G radio frame to the base station, which tunnels it (GTP-U) over fiber to the carrier's core network. A gateway there sends it to the internet, usually behind carrier-grade NAT.`,
+  beats: () => state.myNet === 'wifi'
+    ? [['📶', 'Through the air', '802.11 frame'], ['🏠', 'Home Wi-Fi box', 'Wi-Fi access point'], ['🔁', 'Return address added', 'NAT: private → public'], ['🏢', 'Internet company', 'ISP']]
+    : [['📶', 'Through the air', 'LTE / 5G NR'], ['🗼', 'Cell tower', 'eNodeB / gNodeB'], ['🌐', 'Phone company', 'Carrier core'], ['🔁', 'Return address added', 'Carrier-grade NAT']],
+  control: () => segHTML('myNet', [['wifi', '📶 Wi-Fi'], ['cell', '🗼 Mobile data']]) + (state.hacker ? '<small class="hk-note">🕵️ Hacker simulation is on — see Options to change the Wi-Fi password.</small>' : ''),
+  async hackerAtWifi() {
+    const g2 = termShow();
+    await termLine(g2, 'airodump-ng wlan0', 'cmd');
+    await termLine(g2, 'SSID: Home-WiFi   ENC: ' + (state.wifiSec === 'open' ? 'OPEN' : 'WPA2'), 'muted');
+    let cracked;
+    if (state.wifiSec === 'open') {
+      await termLine(g2, 'connect wlan0 --no-password', 'cmd');
+      await termLine(g2, '[CONNECTED] no password needed', 'warn');
+      cracked = true;
+    } else {
+      await termLine(g2, 'aircrack-ng capture.cap', 'cmd');
+      await termLine(g2, 'cracking… (' + state.wifiSec + ' password)', 'muted');
+      cracked = state.wifiSec === 'weak' && Math.random() < 0.5;
+      await termLine(g2, cracked ? '[SUCCESS] password found' : '[FAILED] password not found', cracked ? 'warn' : 'bad');
+    }
+    if (cracked) {
+      await termLine(g2, 'tcpdump -i wlan0 host ' + SERVER, 'cmd');
+      await termLine(g2, short(24), 'data');
+      await termLine(g2, 'strings capture.pcap | grep -i hi', 'cmd');
+      await termLine(g2, '(no readable text)', 'muted');
+      await termLine(g2, '[BLOCKED] Signal end-to-end encryption', 'bad bold');
+      floatAt('wifiA', '🕵️ 👀 Got on the network', 'hackwarn', -95);
+      await wait(1100, { ignoreSpeed: true });
+      floatAt('wifiA', '🔒 Still can’t read it', 'hack', -95);
+    } else {
+      await termLine(g2, '[BLOCKED] never got on the network', 'bad bold');
+      floatAt('wifiA', state.wifiSec === 'weak' ? '🕵️ 🔒 Couldn’t crack it this time' : '🕵️ 🔒 Blocked — Wi-Fi is locked too', 'hack', -95);
+    }
+    await wait(1400, { ignoreSpeed: true });
+    termHide();
+  },
+  packet: true,
+  cam: () => [['phoneA', ...upAccess().map(l => l.to)]],
+  async run() {
+    showMsg('phoneA');
+    await wait(400);
+    await run(upAccess(), {
+      onStart: it => { if (it.from === 'phoneA') beat(0, 0); },
+      onArrive: async it => {
+        if (ROUTER.has(it.to)) ttlFloat(it.to);
+        if (it.to === 'wifiA') {
+          await beat(1); await beat(2);
+          if (state.hacker) await STEPS[3].hackerAtWifi();
+        }
+        if (it.to === 'ispA') await beat(3);
+        if (it.to === 'towerA') {
+          await beat(1);
+          if (state.hacker) {
+            const g3 = termShow();
+            await termLine(g3, 'rtl_sdr -f <cell-frequency>', 'cmd');
+            await termLine(g3, 'LTE / 5G radio has its own encryption', 'muted');
+            await termLine(g3, '[BLOCKED] no consumer hardware breaks this', 'bad bold');
+            floatAt('towerA', '🕵️ 🔒 Blocked — the radio link is encrypted too', 'hack', -95);
+            await wait(1400, { ignoreSpeed: true });
+            termHide();
+          }
+        }
+        if (it.to === 'coreA') { await beat(2); await beat(3); }
+      }
+    });
+  }
+},
+{
+  title: "Looking up WhatsApp's address",
+  pace: 0.9,
+  simple: () => `To send something you need an address. Your phone asks the internet's "phone book" where WhatsApp is, and writes the answer down. Usually it did this long before, so it takes no extra time.`,
+  tech: () => `The phone asks a DNS resolver for the address of a WhatsApp host name (such as g.whatsapp.net). If the answer isn't cached, the resolver asks the root, .net and WhatsApp's own name servers. The app does this when it connects, so it costs 0 ms per message. ${SERVER} is an example address.`,
+  beats: () => [['❓', '“Where is WhatsApp?”', 'A? g.whatsapp.net'], ['📖', 'Internet phone book', 'DNS resolver'], ['📍', '“Here’s the address”', 'A ' + SERVER], ['💾', 'Saved for next time', 'Cached · 0 ms']],
+  cam: () => [['phoneA', exitId(), 'dns']],
+  async run() {
+    showMsg(hud.pos); msgDot.classList.add('dim');
+    await wait(400);
+    const q = [...upAccess(), Lg(exitId(), 'dns', 2)].map(l => Object.assign({}, l, { dot: 'dns', count: false, dur: 0.6 }));
+    beat(0, 0);
+    floatAt('phoneA', '❓ WhatsApp?', 'info');
+    await run(q);
+    await beat(1);
+    floatAt('dns', '📍 ' + SERVER, 'ok');
+    await beat(2);
+    await run(rev(q, { dot: 'dns', count: false, dur: 0.6 }));
+    floatAt('phoneA', '💾', 'ok');
+    await beat(3);
+    msgDot.classList.remove('dim');
+  }
+},
+{
+  title: 'A trip across the world',
+  pace: 1,
+  simple: () => `The message passes through several sorting stations, like a parcel going through post offices. Each one only reads the address label and sends it onward. To cross the sea, it travels as flashes of light inside a cable lying on the sea floor.`,
+  tech: () => `Each router looks up the destination in its routing table (routes learned via BGP) and lowers the TTL by 1, so lost packets can't loop forever. At the exchange point (IXP), your provider hands traffic straight to Meta's network. Light in fiber crosses ~6,400 km of ocean in about 32 ms. Real routes usually have 8–20 hops.`,
+  beats: () => [['🏷️', 'Each stop reads the address', 'Routing-table lookup'], ['➡️', 'Sends it onward', 'TTL −1 per hop'], ['🤝', 'Networks meet up', 'IXP peering'], ['💡', 'Light under the sea', '~6,400 km ≈ 32 ms']],
+  packet: true,
+  cam: () => [[exitId(), 'r1', 'ixp', 'r2', 'lb'], { follow: true }],
+  async run() {
+    showMsg(hud.pos);
+    await wait(300);
+    await run(internet(), {
+      onStart: it => { if (it.to === 'lb') { beat(3, 0); floatAt('r2', tech() ? '💡 6,400 km ≈ 32 ms' : '💡 6,400 km in 0.03 sec', 'info', 110); } },
+      onArrive: async it => {
+        if (ROUTER.has(it.to)) ttlFloat(it.to);
+        if (it.to === 'r1') { await beat(0); await beat(1); }
+        if (it.to === 'ixp') { floatAt('ixp', '🤝', 'info'); await beat(2); }
+      }
+    });
+    await wait(600);
+  }
+},
+{
+  title: "WhatsApp's computers get it",
+  pace: 0.9,
+  simple: () => `The message arrives at WhatsApp's computers. A front desk hands it to a computer that isn't busy. That computer can see who it's for, but it can't open it. It tells your phone "got it".`,
+  tech: () => `The load balancer spreads connections across many chat servers. The server removes the outer Noise encryption and reads the routing info (sender, recipient, time, size). The Signal-encrypted content stays locked. It sends your phone an acknowledgement, which becomes the first grey tick.`,
+  beats: () => [['🛎️', 'Front desk picks a computer', 'Load balancer'], ['👀', "Sees who it's for", 'Reads metadata'], [bx('✉️', 0), "Can't open it", 'Signal payload intact'], [TK(1), '“Got it!” → you', 'Server ACK']],
+  packet: true,
+  cam: () => [['lb', 'chat']],
+  async run() {
+    showMsg('lb');
+    await wait(300);
+    await beat(0);
+    await run(ROUTES[6]());
+    floatAt('chat', '👀 → your friend', 'meta');
+    await beat(1);
+    floatAt('chat', '🔒', 'meta');
+    await beat(2);
+    floatAt('chat', '✓ → you', 'ok');
+    await beat(3);
+  }
+},
+{
+  title: 'Passed on to your friend',
+  pace: 0.85,
+  simple: () => state.online
+    ? `Your friend's phone is already connected to WhatsApp, so the message is passed straight on.`
+    : `Your friend's phone is asleep. WhatsApp keeps the locked message safe and asks Apple or Google to "ring the doorbell". When the phone wakes up, it picks the message up.`,
+  tech: () => state.online
+    ? `Phones keep a connection to WhatsApp open. They sit behind NAT, so the server can't start a new connection to them, but it can send down this one. It creates a new IP packet to your friend's address, with a fresh TTL of 64.`
+    : `The server queues the encrypted message (for up to 30 days) and sends a push notification via APNs (iPhone) or FCM (Android). WhatsApp wakes, reconnects and fetches the message, and the server deletes its copy. Apple and Google can't read it.`,
+  beats: () => state.online
+    ? [['🟢', 'Friend is online', 'Active session'], ['🔌', 'Line already open', 'Persistent connection'], ['📤', 'Sent right away', 'New packet · TTL 64']]
+    : [['😴', 'Friend’s phone is asleep', 'No active session'], ['🗄️', 'Kept safe, still locked', 'Queued (≤ 30 days)'], ['🔔', 'Apple / Google ring', 'APNs / FCM push'], ['📲', 'Phone wakes & picks it up', 'Reconnect + fetch']],
+  control: () => segHTML('online', [['on', '🟢 Online'], ['off', '😴 Asleep']]),
+  packet: true,
+  cam: () => [state.online ? ['chat', 'rB'] : ['chat', 'push', 'rB', 'phoneB']],
+  async run() {
+    showMsg('chat');
+    await wait(300);
+    await beat(0);
+    if (state.online) {
+      await beat(1);
+      beat(2, 0);
+      await run(deliver(), { onReset: () => { if (tech()) floatAt('chat', 'TTL 64', 'ttl'); } });
+    } else {
+      await run(deliver(), {
+        onProc: async it => {
+          if (it.label === 'store') { storeBadge.setAttribute('opacity', 1); await beat(1); }
+          if (it.label === 'wake') { nodeEls.phoneB.classList.add('awake'); beat(3, 0); }
+        },
+        onStart: it => { if (it.dot === 'push' && it.from === 'chat') beat(2, 0); },
+        onArrive: async it => {
+          if (it.dot === 'push' && it.to === 'phoneB') floatAt('phoneB', '🔔', 'push');
+          if (it.dot === 'fetch' && it.to === 'chat') { storeBadge.setAttribute('opacity', 0); floatAt('chat', '📤', 'ok'); }
+        }
+      });
+    }
+    await wait(400);
+  }
+},
+{
+  title: 'The last stretch',
+  pace: 1.15,
+  simple: () => state.friendNet === 'wifi'
+    ? `The message reaches your friend's internet company, then the Wi-Fi box in their home, and flies through the air to their phone.`
+    : `The message reaches your friend's phone company, then the cell tower near them, and flies through the air to their phone.`,
+  tech: () => state.friendNet === 'wifi'
+    ? `Your friend's router uses its NAT table to find which device the packet is for, lowers the TTL and sends it as a Wi-Fi frame.`
+    : `The carrier's core finds which tower the phone is connected to and tunnels the packet there. The tower sends it over the radio link.`,
+  beats: () => state.friendNet === 'wifi'
+    ? [['🏢', "Friend's internet company", 'ISP routing'], ['🏠', "Friend's Wi-Fi box", 'NAT reverse lookup'], ['📶', 'Through the air', '802.11 frame']]
+    : [['🌐', "Friend's phone company", 'Carrier core'], ['🗼', 'Nearest cell tower', 'GTP-U to base station'], ['📶', 'Through the air', 'LTE / 5G NR']],
+  control: () => segHTML('friendNet', [['wifi', '📶 Wi-Fi'], ['cell', '🗼 Mobile data']]),
+  packet: true,
+  cam: () => [['rB', ...downAccess().map(l => l.to)]],
+  async run() {
+    showMsg('rB');
+    await wait(300);
+    await run(downAccess(), {
+      onStart: it => { if (it.to === 'phoneB') beat(2, 0); },
+      onArrive: async it => {
+        if (ROUTER.has(it.to)) ttlFloat(it.to);
+        if (it.to === 'ispB' || it.to === 'coreB') await beat(0);
+        if (it.to === 'wifiB' || it.to === 'towerB') await beat(1);
+      }
+    });
+    floatAt('phoneB', '📬', 'ok');
+    await wait(500);
+  }
+},
+{
+  title: 'Your friend’s phone unlocks it',
+  pace: 0.9,
+  simple: () => `Your friend's phone opens the lock with its own key, and “${M()}” appears on their screen.`,
+  tech: () => `TCP puts the data back in order, the Noise layer is removed, and the Signal session works out the same message key your phone used. The HMAC check proves nothing was changed, then AES-256 decrypts it. The key is then deleted.`,
+  beats: () => [['📩', 'Arrives locked', 'Ciphertext'], ['🔑', 'Only their key fits', 'Double Ratchet key'], ['🔓', 'Unlocked', 'HMAC ✓ · AES-256'], ['💬', `“${shortMsg()}”`, 'Displayed']],
+  closeup: () => `<div class="cu">${phoneHTML('pb', 'You', 'online', false)}<div class="unl" id="unl">🔒</div></div>`,
+  async run() {
+    const chat = $('#pbChat');
+    await wait(300);
+    chat.insertAdjacentHTML('beforeend', `<div class="bubble in"><span class="scr" id="scr">🔒 ${esc(short(28))}</span><span class="bm">${clock()}</span></div>`);
+    await beat(0);
+    beat(1, 0);
+    $('#unl').textContent = '🔑';
+    const el = $('#scr'), m0 = hud.ms;
+    const s = scramble(el, state.cipher.slice(0, 28), state.msg, 1700);
+    await tween(1700, p => { hud.ms = m0 + p; renderHud(); });
+    await s;
+    el.className = '';
+    $('#unl').textContent = '🔓';
+    await beat(2);
+    await beat(3);
+  }
+},
+{
+  title: 'The ticks come back',
+  pace: 0.8,
+  simple: () => `Little notes come back to your phone. One grey tick: WhatsApp got it. Two grey ticks: it reached your friend's phone. Two blue ticks: your friend read it.`,
+  tech: () => `✓ is the server's acknowledgement from step 7. ✓✓ is a delivery receipt sent by your friend's phone through the server. Blue ✓✓ is a read receipt, sent when your friend opens the chat (unless read receipts are turned off).`,
+  beats: () => { const n = stateAt(10).ms; return [[TK(1), 'WhatsApp got it', 'Server ACK'], [TK(2), "Reached friend's phone", 'Delivery receipt'], [TK(3), 'Friend read it', 'Read receipt'], ['⏱️', `All in ${secs(n)} sec`, `One-way ≈ ${Math.round(n)} ms`]]; },
+  cam: () => [['chat', 'phoneA'], { follow: true }],
+  overlay: () => `<div class="ov-card"><div style="display:flex;flex-direction:column">${bubbleOut(0)}</div></div>`,
+  async run() {
+    msgDot.classList.add('hide');
+    const back = rev([...upAccess(), ...internet(), Lg('lb', 'chat', 0.5)]);
+    const fromFriend = [...rev(downAccess()), Lg('rB', 'chat', 5)];
+    const slot = () => $('#overlay .tkslot');
+    camT.x = pos.chat.x;
+    await wait(400);
+    await run(back.map(l => Object.assign({}, l, { dot: 'ack', count: false, dur: 0.4 })));
+    slot().innerHTML = TK(1); ping('phoneA');
+    state.data += HDR.ip + HDR.tcp + HDR.noise + 8; renderHud();
+    await beat(0);
+    camT.x = pos.phoneB.x;
+    await wait(500);
+    await run([...fromFriend, ...back].map(l => Object.assign({}, l, { dot: 'ack2', dur: 0.4 })));
+    slot().innerHTML = TK(2); ping('phoneA');
+    state.data += HDR.ip + HDR.tcp + HDR.noise + 8; renderHud();
+    await beat(1);
+    camT.x = pos.phoneB.x;
+    floatAt('phoneB', '👀', 'info');
+    await wait(1200, { ignoreSpeed: true });
+    await run([...fromFriend, ...back].map(l => Object.assign({}, l, { dot: 'read', count: false, dur: 0.3 })));
+    slot().innerHTML = TK(3); ping('phoneA');
+    state.data += HDR.ip + HDR.tcp + HDR.noise + 8; renderHud();
+    await beat(2);
+    await beat(3);
+  }
+}
+];
+function showMsg(at) { placeAt(msgDot, at); msgDot.classList.remove('hide', 'dim'); }
+
+/* Light up picture card k. With a hold, wait so it can be taken in: the hold
+   ignores the speed slider, so every picture gets time on screen. */
+function beat(k, hold = 1700) {
+  state.beatsOn = Math.max(state.beatsOn, k + 1);
+  state.beatCur = k;
+  $$('#beats .beat').forEach((c, j) => { c.classList.toggle('on', j < state.beatsOn); c.classList.toggle('cur', j === k); });
+  return hold ? wait(hold, { ignoreSpeed: true }) : Promise.resolve();
+}
+function renderBeats() {
+  const st = STEPS[state.step], list = st.beats ? st.beats() : [];
+  $('#beats').innerHTML = list.map((b, j) => `${j ? '<span class="bsep" aria-hidden="true">›</span>' : ''}<div class="beat ${j < state.beatsOn ? 'on' : ''} ${j === state.beatCur ? 'cur' : ''}"><span class="bi">${b[0]}</span><span class="bl">${esc(tech() && b[2] ? b[2] : b[1])}</span></div>`).join('');
+}
+
+/* ---------------- step runner ---------------- */
+function resetScene(i) {
+  const st = STEPS[i];
+  state.pace = st.pace || 1;
+  state.beatsOn = 0; state.beatCur = -1;
+  state.data = dataAt(i);
+  hud = stateAt(i);
+  floatG.innerHTML = '';
+  Object.keys(temp).forEach(dropTemp);
+  Object.values(links).forEach(l => l.g.classList.remove('active'));
+  nodeEls.phoneB.classList.remove('awake');
+  storeBadge.setAttribute('opacity', 0);
+  msgDot.classList.add('hide');
+  msgDot.classList.toggle('ttl-on', tech() && i >= 3 && i <= 8);
+  termHide();
+  closeInfo();
+  state.overview = false;
+  setExtras();
+  const isClose = !!st.closeup;
+  scene.classList.toggle('is-closeup', isClose);
+  $('#closeup').innerHTML = isClose ? st.closeup() : '';
+  $('#overlay').innerHTML = st.overlay ? st.overlay() : '';
+  $('#scNum').textContent = i + 1;
+  $('#scTitle').textContent = st.title;
+  $('#sceneCtl').innerHTML = st.control ? st.control() : '';
+  $('#pktTool').hidden = !st.packet;
+  $('#wholeBtn').hidden = isClose;
+  $('#wholeLbl').textContent = 'Whole map';
+  $('#hint').hidden = isClose || hintDone;
+  if (!isClose && st.cam) { const [ids, opt] = st.cam(); frame(ids, opt || {}); }
+  if (i === 0) bindPhoneForm();
+  renderBeats();
+  renderProgress(); renderCaption(); renderHud(); updateControls(); syncSegs();
+  if (!$('#pktSheet').hidden) renderPacket();
+}
+async function runStep(i, opt) {
+  token++;
+  const my = token;
+  state.paused = false;
+  state.step = i;
+  resetScene(i);
+  try {
+    await STEPS[i].run(opt);
+    // A last look at the finished picture before moving on.
+    await wait(1500, { ignoreSpeed: true });
+    return my === token;
+  } catch (e) { if (!(e instanceof Cancel)) console.error(e); return false; }
+}
+async function playAll(from) {
+  state.playing = true; updateControls();
+  for (let i = from; i < STEPS.length; i++) {
+    if (!(await runStep(i)) || !state.playing) return;
+    if (i < STEPS.length - 1) { try { await wait(400); } catch (e) { return; } if (!state.playing) return; }
+  }
+  state.playing = false; updateControls();
+}
+function go(i) { if (i < 0 || i >= STEPS.length) return; state.playing = false; runStep(i); }
+function togglePlay() {
+  if (!state.playing) playAll(state.step === STEPS.length - 1 ? 0 : state.step);
+  else { state.paused = !state.paused; updateControls(); }
+}
+
+/* ---------------- rendering ---------------- */
+function renderProgress() {
+  $('#progress').innerHTML = `<ol>${STEPS.map((s, k) => `<li class="${k < state.step ? 'past' : ''} ${k === state.step ? 'cur' : ''}"><button class="pg" data-i="${k}" title="${k + 1}. ${esc(s.title)}" aria-label="Step ${k + 1}: ${esc(s.title)}" ${k === state.step ? 'aria-current="step"' : ''}>${k + 1}</button></li>`).join('')}</ol>`;
+}
+function renderCaption() {
+  const st = STEPS[state.step];
+  $('#caption').innerHTML = `
+    <div class="cap-head"><span class="cap-step">Step ${state.step + 1} of ${STEPS.length} · ${esc(st.title)}</span>${segHTML('mode', [['simple', 'Simple'], ['tech', 'Technical']]).replace('class="seg"', 'class="seg mini"')}</div>
+    <p class="cap-simple">${st.simple()}</p>
+    <p class="cap-techp"><b>Technical:</b> ${st.tech()}</p>`;
+  syncSegs();
+}
+function updateControls() {
+  const pb = $('#playBtn'), last = STEPS.length - 1;
+  pb.textContent = state.playing ? (state.paused ? '▶ Resume' : '❚❚ Pause') : (state.step === 0 || state.step === last ? '▶ Play all' : '▶ Continue');
+  $('#prevBtn').disabled = state.step === 0;
+  $('#nextBtn').disabled = state.step === last;
+}
+function syncSegs() {
+  const cur = { mode: state.mode, myNet: state.myNet, friendNet: state.friendNet, online: state.online ? 'on' : 'off', hacker: state.hacker ? 'on' : 'off', wifiSec: state.wifiSec, backup: state.backup };
+  $('#wifiSecOpt').hidden = !state.hacker;
+  $('#wifiSecNote').hidden = !state.hacker;
+  $('#backupOpt').hidden = !state.hacker;
+  $('#backupNote').hidden = !state.hacker;
+  $$('.seg[data-bind]').forEach(s => $$('button', s).forEach(b => {
+    const on = b.dataset.val === cur[s.dataset.bind];
+    b.classList.toggle('on', on); b.setAttribute('aria-pressed', on);
+  }));
+}
+function setOpt(bind, val) {
+  if (bind === 'mode') {
+    if (state.mode === val) return;
+    state.mode = val; renderCaption(); renderBeats(); renderHud();
+    svg.classList.toggle('tech', tech());
+    msgDot.classList.toggle('ttl-on', tech() && state.step >= 3 && state.step <= 8);
+    if (!$('#pktSheet').hidden) renderPacket();
+    if (infoId) openInfo(infoId);
+    return;
+  }
+  if (bind === 'hacker' || bind === 'wifiSec' || bind === 'backup') {
+    const b = [state.hacker, state.wifiSec, state.backup].join();
+    if (bind === 'hacker') state.hacker = val === 'on';
+    if (bind === 'wifiSec') state.wifiSec = val;
+    if (bind === 'backup') state.backup = val;
+    syncSegs();
+    if ([state.hacker, state.wifiSec, state.backup].join() === b) return;
+    if (state.playing) playAll(state.step); else runStep(state.step);
+    return;
+  }
+  const before = [state.myNet, state.friendNet, state.online].join();
+  if (bind === 'myNet') state.myNet = val;
+  if (bind === 'friendNet') state.friendNet = val;
+  if (bind === 'online') state.online = val === 'on';
+  if ([state.myNet, state.friendNet, state.online].join() === before) return;
+  buildMap();
+  if (state.playing) playAll(state.step); else runStep(state.step);
+}
+
+/* device info card */
+let infoId = null, hintDone = false;
+function openInfo(id) {
+  infoId = id; hintDone = true; $('#hint').hidden = true;
+  const [s, t] = INFO[id];
+  const box = $('#info');
+  box.innerHTML = `<div class="info-h c-${DEV[id].cat}">${icon(DEV[id].icon)}<b id="infoTitle">${esc(name(id))}</b><button class="x" id="infoX" aria-label="Close">×</button></div>
+    <p>${s}</p>${tech() ? `<p class="tech">${t}</p>` : `<details class="cap-tech" style="margin-top:8px;padding-top:6px"><summary>Technical</summary><p>${t}</p></details>`}`;
+  box.hidden = false;
+  $('#infoX').onclick = closeInfo;
+}
+function closeInfo() { infoId = null; $('#info').hidden = true; }
+
+/* packet view */
+function renderPacket() {
+  const i = state.step;
+  let title = tech() ? 'Inside the packet' : 'What’s inside the envelopes', sub, layers;
+  if (i === 6 && hud.pos === 'chat') {
+    sub = 'At the chat server: outer envelopes removed';
+    layers = [{ k: 'meta', n: 'Routing info', s: 'To: your friend · From: you', who: 'WhatsApp’s server', t: 'sender, recipient device IDs, timestamp, size' }, packetLayers()[4]];
+  } else if (i === 7 && hud.side === 'up') {
+    sub = state.online ? 'At the chat server, about to be sent on' : 'Stored at the chat server, still locked';
+    layers = [{ k: 'meta', n: 'Routing info', s: 'To: your friend · From: you', who: 'WhatsApp’s server', t: 'sender, recipient device IDs, timestamp, size' }, packetLayers()[4]];
+  } else {
+    sub = 'Right now at: ' + name(hud.pos);
+    layers = packetLayers();
+  }
+  $('#pktTitle').innerHTML = `${title}<small>${esc(sub)}</small>`;
+  $('#pktBody').innerHTML = envHTML(layers, false) + `<p class="env-note">The outer envelopes are read and replaced along the way. The inner one is only opened on your friend's phone.</p>`;
+}
+
+/* step 1: let people write their own message on the phone */
+function bindPhoneForm() {
+  const form = $('#paForm'), input = $('#paIn');
+  input.addEventListener('input', e => { if (e.isTrusted) { token++; state.playing = false; updateControls(); } });
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const v = input.value.trim();
+    if (!v) { runStep(0); return; }
+    setMessage(v);
+    token++; state.playing = false;
+    runStep(0, { typed: true }).then(() => {});
+    setTimeout(() => { const i = $('#paIn'); if (i) i.value = v; }, 0);
+  });
+}
+function setMessage(v) {
+  state.msg = v; state.cipher = makeCipher(v);
+  $('#msgInput').value = v;
+}
+
+/* ---------------- wiring ---------------- */
+function init() {
+  state.cipher = makeCipher(state.msg);
+  buildMap();
+  document.addEventListener('click', e => {
+    const b = e.target.closest('.seg[data-bind] button');
+    if (b) { setOpt(b.parentElement.dataset.bind, b.dataset.val); return; }
+    const pg = e.target.closest('.pg');
+    if (pg) { go(+pg.dataset.i); return; }
+    if (e.target.closest('#pktTool')) { renderPacket(); $('#pktSheet').hidden = false; return; }
+    if (e.target.closest('[data-close]') || e.target.classList.contains('backdrop')) { $$('.backdrop').forEach(x => x.hidden = true); }
+  });
+  $('#prevBtn').onclick = () => go(state.step - 1);
+  $('#nextBtn').onclick = () => go(state.step + 1);
+  $('#playBtn').onclick = togglePlay;
+  $('#replayBtn').onclick = () => go(state.step);
+  $('#optBtn').onclick = () => { $('#optSheet').hidden = false; };
+  $('#wholeBtn').onclick = () => {
+    state.overview = !state.overview;
+    $('#wholeLbl').textContent = state.overview ? 'Zoom back in' : 'Whole map';
+    if (state.overview) frame(Object.keys(pos).filter(id => !nodeEls[id].classList.contains('ghost')), { overview: true });
+    else { const [ids, opt] = STEPS[state.step].cam(); frame(ids, opt || {}); }
+  };
+  const sp = $('#speed');
+  sp.addEventListener('input', () => { state.speed = +sp.value; $('#speedOut').textContent = state.speed + '×'; });
+  let tmr;
+  $('#msgInput').addEventListener('input', e => {
+    clearTimeout(tmr);
+    tmr = setTimeout(() => {
+      const v = e.target.value.trim() || 'Hi!';
+      if (v === state.msg) return;
+      setMessage(v);
+      renderCaption();
+      if ([0, 1, 9, 10].includes(state.step) && !state.playing) runStep(state.step);
+    }, 450);
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { $$('.backdrop').forEach(x => x.hidden = true); closeInfo(); return; }
+    const t = e.target instanceof Element ? e.target : document.body;
+    if (t.closest('input, textarea, [contenteditable]') || !$('#optSheet').hidden || !$('#pktSheet').hidden) return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); go(state.step + 1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); go(state.step - 1); }
+    else if (e.key === ' ' && !t.closest('button, .node, summary')) { e.preventDefault(); togglePlay(); }
+  });
+  window.addEventListener('resize', () => { if (lastFrame) frame(lastFrame[0], lastFrame[1]); });
+  frame(['phoneA', 'r1'], { instant: true });
+  requestAnimationFrame(camLoop);
+  runStep(0);
+}
+init();
+})();
+</script>
+</body>
+</html>
